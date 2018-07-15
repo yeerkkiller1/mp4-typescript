@@ -7,7 +7,7 @@ import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw
 import { LargeBuffer } from "./parser-lib/LargeBuffer";
 import { parseObject } from "./parser-lib/BinaryCoder";
 import { createVideo3 } from "./media/create-mp4";
-import { writeFileSync } from "fs";
+import { writeFileSync, readFile } from "fs";
 import { CreateTempFolderPath } from "temp-folder";
 import { SetTimeoutAsync } from "pchannel";
 import { testReadFile } from "./test/utils";
@@ -34,23 +34,22 @@ wrapAsync(async () => {
 
 // Okay... we are basically there. BUT. Everything is way too slow...
 
-//*
-wrapAsync(async () => {
-    
-    //todonext
-    // Write onto the jpegs, with something fast (maybe a v8 plugin), so we will always be able to debug
-    //  frames, seeing their original time and stuff.
+/*
+wrapAsync(async () => {    
     // We will make every chunk have consistent FPS, but it looks like different chunks can have different FPS, with no difficulty.
     //  Which is really useful, because we want the FPS to stay the same for a minimum period of time anyway, or else
     //  the video will look too choppy.
     // Then... expose this as a npm package, start faking video streaming to/in camera/streaming, and start saving, transcoding,
     //  and displaying the video in the browser.
-    await createVideo({
+    let buf = await CreateVideo({
         jpegPattern: "./dist/frame3%d.jpeg",
         baseMediaDecodeTimeInSeconds: 100 + 2,
-        fps: 10,
-        outputPath: `./dist/output1.mp4`
+        fps: 10
     });
+
+    writeFileSync("./dist/output1.mp4", buf);
+
+    console.log(`Length ${buf.length}`);
 });
 //*/
 
@@ -65,12 +64,19 @@ async function profile(name: string, code: () => Promise<void>): Promise<void> {
     }
 }
 
-async function createVideo(params: {
+function readFilePromise(path: string) {
+    return new Promise<Buffer>((resolve, reject) => {
+        readFile(path, (err, data) => {
+            err ? reject(err) : resolve(data);
+        });
+    });
+}
+
+export async function CreateVideo(params: {
     jpegPattern: string;
     baseMediaDecodeTimeInSeconds: number;
     fps: number;
-    outputPath: string;
-}) {
+}): Promise<Buffer> {
 
     let folderPath = await CreateTempFolderPath();
     let nalOutput = `${folderPath}_${randomUID("nal")}.nal`;
@@ -80,8 +86,11 @@ async function createVideo(params: {
 
     let timescale = params.fps;
     let frameTimeInTimescale = 1;
-    let width = 800;
-    let height = 600;
+    // Hmm... it doesn't appear as if video players EVEN look at these. So... I'm going to just set them to 0, because
+    //  getting the values could be really difficult and slow (we have to figure out the jpegPattern, and then decode the jpeg),
+    //  and it doesn't even appear to matter.
+    let width = 0;
+    let height = 0;
     
     let NALs!: ReturnType<typeof getH264NALs>;
     
@@ -100,9 +109,9 @@ async function createVideo(params: {
         );
     });
     
+    let outputPath = `${folderPath}_${randomUID("mp4")}.mp4`;
     await profile("createVideo3", async () => {
-        let outputName = params.outputPath;
-        await createVideo3(outputName, {
+        await createVideo3(outputPath, {
             timescale,
             frameTimeInTimescale,
             width,
@@ -111,6 +120,11 @@ async function createVideo(params: {
             addMoov: true
         }, NALs);
     });
+
+    // Well... if we every want to support > 4GB or 2GB or whatever files, we would need to change this line. Everything else supports
+    //  very large files (maybe not x264, I'm not sure), because we use LargeBuffer everywhere else. However, exporting the LargeBuffer
+    //  types is a lot, and so I am only exporting Buffer for the purpose of keeping the .d.ts file for this clean.
+    return await readFilePromise(outputPath);
 }
 
 //*/

@@ -26,9 +26,6 @@ function getConfig (env) {
         resolve: {
             // Add '.ts' and '.tsx' as resolvable extensions.
             extensions: [".webpack.js", ".web.js", ".ts", ".tsx", ".js"],
-            alias: {
-                "native$": path.resolve(__dirname, "src/native/nativeBootstrap.js")
-            },
             modules: ['node_modules'],
         },
 

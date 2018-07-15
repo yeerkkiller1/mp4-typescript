@@ -883,8 +883,11 @@ export function Iterate<
 >(
     generate: F
 ) {
-    type FinalResultObject = TemplateToObject<ReturnType<F>> | undefined;
+    //type FinalResultObject = TemplateToObject<ReturnType<F>> | undefined;
     type ResultObject = _SerialObjectOutput<ReturnType<F>> | undefined;
+
+    // any is required here to fix .d.ts generation
+    type FinalResultObject = any;
 
     // Nested function, for type inference.
 
