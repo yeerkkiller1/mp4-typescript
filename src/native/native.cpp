@@ -22,7 +22,7 @@ void Method(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 
   int size = 5;
   char * retval = new char[size];
-  for(unsigned int i = 0; i < size; i++ ) {
+  for(int i = 0; i < size; i++ ) {
       retval[i] = 75;
   }   
   

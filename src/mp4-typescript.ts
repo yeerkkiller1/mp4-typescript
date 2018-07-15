@@ -12,29 +12,29 @@ import { CreateTempFolderPath } from "temp-folder";
 import { SetTimeoutAsync } from "pchannel";
 import { testReadFile } from "./test/utils";
 
-import * as native from "native";
 
+//import * as native from "native";
 // Hmm... we don't actually need this. I was going to use it for ConvertAnnexBToAVCC,
 //  because it took ~25% of the total time. But... then I updated to the latest version of node, and now it takes less than 10%,
-//  and our whole program is only about 20% of x264, so we can leave it in javascript.
-var data = new Buffer([60, 70]);
-data = native.hello(data);
-console.log(data.toString());
+//  and our whole program is only about 10% of x264, so we can leave it in javascript.
+// Also, writing to the jpegs is surprisingly slow. Maybe about 27ms per frame, when x264 takes about 70ms per frame to encode,
+//  so writing the jpegs is really way too slow.
+//var data = new Buffer([60, 70]);
+//data = native.hello(data);
+//console.log(data.toString());
 
 /*
 wrapAsync(async () => {
-    let time = +new Date();
-    for(let i = 0; i < 30; i++) {
-        let frame = await createSimulatedFrame(time, 800, 600);
-        writeFileSync(`./dist/frame${i}.jpg`, frame);
-        time += 100;
+    for(let i = 0; i < 100; i++) {
+        let frame = await createSimulatedFrame(i, 1920, 1080);
+        writeFileSync(`./dist/frame${i}.jpeg`, frame);
     }
 });
 //*/
 
 // Okay... we are basically there. BUT. Everything is way too slow...
 
-/*
+//*
 wrapAsync(async () => {
     
     //todonext
