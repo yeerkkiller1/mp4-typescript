@@ -42,8 +42,9 @@ wrapAsync(async () => {
     // Then... expose this as a npm package, start faking video streaming to/in camera/streaming, and start saving, transcoding,
     //  and displaying the video in the browser.
     let buf = await CreateVideo({
-        jpegPattern: "./dist/frame3%d.jpeg",
-        baseMediaDecodeTimeInSeconds: 100 + 2,
+        jpegPattern: "C:/Users/quent/Dropbox/camera/streaming/dist/videos/frame1.jpeg",
+        //jpegPattern: "./dist/frame%d.jpeg",
+        baseMediaDecodeTimeInSeconds: 0,
         fps: 10
     });
 

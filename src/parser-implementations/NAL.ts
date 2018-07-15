@@ -415,11 +415,17 @@ export const NAL_SPS = ChooseInfer()({
     direct_8x8_inference_flag: BitPrimitive,
     frame_cropping_flag: BitPrimitive,
 })({
-    frame_cropping_flag_check: InvariantCheck(({frame_cropping_flag}) => frame_cropping_flag === 1),
-    frame_crop_left_offset: UExpGolomb,
-    frame_crop_right_offset: UExpGolomb,
-    frame_crop_top_offset: UExpGolomb,
-    frame_crop_bottom_offset: UExpGolomb,
+    [ErasedKey4]: ({frame_cropping_flag}) => {
+        if(frame_cropping_flag === 1) {
+            return {
+                frame_crop_left_offset: UExpGolomb,
+                frame_crop_right_offset: UExpGolomb,
+                frame_crop_top_offset: UExpGolomb,
+                frame_crop_bottom_offset: UExpGolomb,
+            }
+        }
+        return {};
+    },
     vui_parameters_present_flag: BitPrimitive,
 })({
     vui_parameters_present_flag: BitPrimitive
