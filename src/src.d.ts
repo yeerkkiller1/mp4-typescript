@@ -1,0 +1,1 @@
+/// <reference path="./native/native.d.ts" />

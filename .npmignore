@@ -1,0 +1,8 @@
+node_modules/
+npm-debug.log
+.DS_Store
+stats.html
+src
+
+!src/**/*.d.ts
+!src/native/nativeWrapper.js
