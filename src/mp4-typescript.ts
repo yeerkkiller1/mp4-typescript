@@ -267,7 +267,7 @@ async function InternalCreateVideo(params: {
             timescale,
             width,
             height,
-            baseMediaDecodeTimeInTimescale: params.baseMediaDecodeTimeInSeconds * timescale,
+            baseMediaDecodeTimeInTimescale: ~~(params.baseMediaDecodeTimeInSeconds * timescale),
             addMoov: true,
             frames: frames,
             sps: NALs.filter(x => x.nalObject.type === "sps")[0],
