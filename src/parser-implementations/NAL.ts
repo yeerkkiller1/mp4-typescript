@@ -1166,6 +1166,38 @@ export function NALList(sizeByteLength: number, sps: TemplateToObject<typeof NAL
     // return { NALs: ArrayInfinite(NALCreate(sizeByteLength, sps, pps)) };
 };
 
+export function ParseNalHeaderByte(b: number) {
+    let context: ReadContext = {
+        bitOffset: 0,
+        debugKey: "",
+        end: 1,
+        endBits: 8,
+        pPos: { v: 0 },
+        buffer: new LargeBuffer([new Buffer(b)]),
+    };
+    let output = bitMapping({
+        forbidden_zero_bit: 1,
+        nal_ref_idc: 2,
+        nal_unit_type: 5,
+    }).read(context);
+
+    if(output.forbidden_zero_bit !== 0) {
+        throw new Error(`Nal header byte is not a nal header byte. ${b}`);
+    }
+
+    if(output.nal_unit_type === 7) {
+        return "sps";
+    } else if(output.nal_unit_type === 8) {
+        return "pps";
+    } else if(output.nal_unit_type === 6) {
+        return "sei";
+    } else if(output.nal_unit_type === 1 || output.nal_unit_type === 5) {
+        return "slice";
+    }
+
+    return "unknown";
+}
+
 export type NALRawTemplate = ReturnType<typeof NALCreateRaw>;
 export type NALRawType = TemplateToObject<NALRawTemplate>;
 export function NALCreateRaw(sizeByteLength: number) {

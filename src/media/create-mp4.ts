@@ -4,7 +4,7 @@ import { RootBox, FtypBox, MdatBox, MoofBox, StypBox, sample_flags, MoovBox, Sid
 import { LargeBuffer } from "../parser-lib/LargeBuffer";
 import { writeObject, parseObject } from "../parser-lib/BinaryCoder";
 import { keyBy, sort } from "../util/misc";
-import { min } from "../util/math";
+import { min, sum } from "../util/math";
 
 async function profile(name: string, code: () => Promise<void>): Promise<void> {
     let time = +new Date();
@@ -21,23 +21,27 @@ export async function createVideo3 (
     outputFileName: string,
     videoInfo: {
         timescale: number;
-        frameTimeInTimescale: number;
         width: number;
         height: number;
         baseMediaDecodeTimeInTimescale: number;
         addMoov: boolean;
+        // nalObject.type === "slice"
+        frames: {
+            nal: NALRawType;
+            frameTimeInTimescale: number;
+        }[],
+        // nalObject.type === "sps"
+        sps: NALRawType,
+        // nalObject.type === "pps"
+        pps: NALRawType
     },
-    NALs: NALRawType[]
 ): Promise<void> {
     let timescale = videoInfo.timescale;
-    let frameTimeInTimescale = videoInfo.frameTimeInTimescale;
     let width = videoInfo.width;
     let height = videoInfo.height;
     let baseMediaDecodeTimeInTimescale = videoInfo.baseMediaDecodeTimeInTimescale;
 
-    let sps = NALs.filter(x => x.nalObject.type === "sps")[0];
-    let pps = NALs.filter(x => x.nalObject.type === "pps")[0];
-
+    let { frames, sps, pps } = videoInfo;
 
     let profile_idc!: number;
     let level_idc!: number;
@@ -54,21 +58,45 @@ export async function createVideo3 (
     if(!pps) {
         throw new Error("pps required");
     }
-
-    
+   
     let codec = `avc1.${profile_idc.toString(16)}00${level_idc.toString(16)}`;
 
-    let frames = NALs.filter(x => x.nalObject.type === "slice");
-    let frameInfos = getSamples(frames, frameTimeInTimescale);
+    //let frames = NALs.filter(x => x.nalObject.type === "slice");
+    let frameInfos = frames.map((input, i) => {
+        let obj = input.nal.nalObject;
+        if(obj.type !== "slice") throw new Error("impossible");
+        
+        // Hmm... have to call write to write the nal header stuff.
+        let buffer = writeObject(NALListRaw(4), { NALs: [input.nal] });
+
+        return {
+            buffer: buffer,
+            composition_offset: 0,
+            frameTimeInTimescale: input.frameTimeInTimescale
+        };
+    });
 
     let samples: SampleInfo[] = frameInfos.map(x => ({
         sample_size: x.buffer.getLength(),
         sample_composition_time_offset: x.composition_offset,
     }));
 
+    let variableFrameRate = false;
+    let defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameTimeInTimescale : 0;
+    for(let frameInfo of frameInfos) {
+        if(frameInfo.frameTimeInTimescale !== defaultSampleDuration) {
+            variableFrameRate = true;
+            break;
+        }
+    }
+    if(variableFrameRate) {
+        for(let i = 0; i < samples.length; i++) {
+            samples[i].sample_duration = frameInfos[i].frameTimeInTimescale;
+        }
+    }
+
 
     let boxes: TemplateToObject<typeof RootBox>["boxes"][0][] = [];
-
 
     if(videoInfo.addMoov) {
         let ftyp: O<typeof FtypBox> = {
@@ -85,12 +113,12 @@ export async function createVideo3 (
             ]
         };
         boxes.push(ftyp);
-    
+
+
         let moov = createMoov({
             defaultFlags: nonKeyFrameSampleFlags,
             timescale: timescale,
             durationInTimescale: 0,
-            frameTimeInTimescale: frameTimeInTimescale,
             width: width,
             height: height,
             AVCProfileIndication: profile_idc,
@@ -98,6 +126,7 @@ export async function createVideo3 (
             AVCLevelIndication: level_idc,
             sps: sps.nalObject.nal,
             pps: pps.nalObject.nal,
+            defaultSampleDuration: defaultSampleDuration,
         });
         boxes.push(moov);
     }
@@ -127,7 +156,7 @@ export async function createVideo3 (
     let sidx = createSidx({
         moofSize: moofBuf.getLength(),
         mdatSize: mdatBuf.getLength(),
-        subsegmentDuration: samples.length * frameTimeInTimescale,
+        subsegmentDuration: sum(frameInfos.map(x => x.frameTimeInTimescale)),
         timescale: timescale,
         startsWithKeyFrame: true
     });
@@ -210,7 +239,6 @@ function createMoov(
         defaultFlags: SampleFlags;
         timescale: number;
         durationInTimescale: number;
-        frameTimeInTimescale: number;
         width: number;
         height: number;
         AVCProfileIndication: number;
@@ -218,6 +246,7 @@ function createMoov(
         AVCLevelIndication: number;
         sps: LargeBuffer,
         pps: LargeBuffer,
+        defaultSampleDuration: number;
     }
 ): O<typeof MoovBox> {
     if("time_scale" in d.sps) {
@@ -287,7 +316,7 @@ function createMoov(
                         track_ID: 1,
                         // Index of sample information in stsd. Could be used to change width/height?
                         default_sample_description_index: 1,
-                        default_sample_duration: d.frameTimeInTimescale,
+                        default_sample_duration: d.defaultSampleDuration,
                         default_sample_size: 0,
                         default_sample_flags: d.defaultFlags
                     }
