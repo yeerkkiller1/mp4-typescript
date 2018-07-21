@@ -102,7 +102,6 @@ export function NALLength(sizeByteLength = 4): SerialObjectPrimitiveLength<{}> {
             let contentSize = context.getSizeAfter();
             let buf = Buffer.alloc(sizeByteLength);
             buf.writeUIntBE(contentSize, 0, sizeByteLength);
-            console.log(buf, {contentSize});
             return new LargeBuffer([ buf ]);
         }
     };
