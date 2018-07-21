@@ -28,7 +28,7 @@ export async function createVideo3 (
         // nalObject.type === "slice"
         frames: {
             nal: NALRawType;
-            frameTimeInTimescale: number;
+            frameDurationInTimescale: number;
         }[],
         // nalObject.type === "sps"
         sps: NALRawType,
@@ -72,7 +72,7 @@ export async function createVideo3 (
         return {
             buffer: buffer,
             composition_offset: 0,
-            frameTimeInTimescale: input.frameTimeInTimescale
+            frameDurationInTimescale: input.frameDurationInTimescale
         };
     });
 
@@ -82,16 +82,16 @@ export async function createVideo3 (
     }));
 
     let variableFrameRate = false;
-    let defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameTimeInTimescale : 0;
+    let defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameDurationInTimescale : 0;
     for(let frameInfo of frameInfos) {
-        if(frameInfo.frameTimeInTimescale !== defaultSampleDuration) {
+        if(frameInfo.frameDurationInTimescale !== defaultSampleDuration) {
             variableFrameRate = true;
             break;
         }
     }
     if(variableFrameRate) {
         for(let i = 0; i < samples.length; i++) {
-            samples[i].sample_duration = frameInfos[i].frameTimeInTimescale;
+            samples[i].sample_duration = frameInfos[i].frameDurationInTimescale;
         }
     }
 
@@ -156,7 +156,7 @@ export async function createVideo3 (
     let sidx = createSidx({
         moofSize: moofBuf.getLength(),
         mdatSize: mdatBuf.getLength(),
-        subsegmentDuration: sum(frameInfos.map(x => x.frameTimeInTimescale)),
+        subsegmentDuration: sum(frameInfos.map(x => x.frameDurationInTimescale)),
         timescale: timescale,
         startsWithKeyFrame: true
     });

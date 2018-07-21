@@ -231,49 +231,80 @@ export async function CreateVideo(params: {
 }): Promise<Buffer> {
     let { x264 } = eval(`require("x264-npm")`);
 
-    let { jpegPattern, ...passThroughParams } = params;
+    let { jpegPattern, fps, ...passThroughParams } = params;
 
     let folderPath = await CreateTempFolderPath();
     let nalOutput = `${folderPath}_${randomUID("nal")}.nal`;
     await profile("x264", async () => {
         console.log(await x264("--output", nalOutput, jpegPattern, "--bframes", "0"));
     });
-
-    let timescale = params.fps;
-    let frameTimeInTimescale = 1;
-    
-    let NALs!: ReturnType<typeof getH264NALs>;
-    
+      
     let fixedBuffer: LargeBuffer = LargeBuffer.FromFile(nalOutput);
     
     await profile("ConvertAnnexBToAVCC", async () => {
         fixedBuffer = ConvertAnnexBToAVCC(fixedBuffer);
     });
 
+    let NALs!: NALRawType[];
+    await profile("getH264NAL", async () => {
+        NALs = getH264NALs(
+            [{
+                path: "NO_PATH",
+                buf: fixedBuffer
+            }]
+        );
+
+        console.log(`Found NALs ${NALs.length}`);
+    });
+
+
     return await InternalCreateVideo({
         ...passThroughParams,
-        fixedBuffer
+        frames: NALs.filter(x => x.nalObject.type === "slice").map(x => {
+            return {
+                nal: x,
+                frameDurationInSeconds: 1 / fps
+            };
+        }),
+        sps: NALs.filter(x => x.nalObject.type === "sps")[0],
+        pps: NALs.filter(x => x.nalObject.type === "pps")[0]
     });
 }
 
 /** 'mux', but with no audio, so I don't really know what this is. */
 export async function MuxVideo(params: {
     /** Not annex B or AVCC. They should have no start codes or start lengths, and each Buffer should be one NAL. */
-    nals: Buffer[];
+    sps: Buffer;
+    pps: Buffer;
+    frames: {
+        buf: Buffer;
+        frameDurationInSeconds: number;
+    }[];
     baseMediaDecodeTimeInSeconds: number;
-    fps: number;
     // These are important, and if they aren't correct bad things will happen.
     width: number;
     height: number;
 }): Promise<Buffer> {
 
-    let { nals, ...passThroughParams } = params;
+    let { sps, pps, frames, ...passThroughParams } = params;
 
-    let fixedBuffer = new LargeBuffer(nals.map(nal => new LargeBuffer([NALLength(4).write({ curBitSize: 0, value: -1, getSizeAfter: () => nal.length }), nal])));
-
+    function p(buf: Buffer) {
+        let prefixedBuffer = new LargeBuffer([NALLength(4).write({ curBitSize: 0, value: -1, getSizeAfter: () => buf.length }), buf]);
+        return parseObject(prefixedBuffer, NALCreateRaw(4));
+    }
+    let spsNal = p(sps);
+    let ppsNal = p(pps);
+    
     return await InternalCreateVideo({
         ...passThroughParams,
-        fixedBuffer
+        frames: frames.map(x => {
+            return {
+                nal: p(x.buf),
+                frameDurationInSeconds: x.frameDurationInSeconds
+            };
+        }),
+        sps: spsNal,
+        pps: ppsNal,
     });
 }
 
@@ -288,56 +319,41 @@ export async function MuxVideo(params: {
 // time gst-launch-1.0 -vv -e v4l2src device=/dev/video0 num-buffers=10 ! capsfilter caps="image/jpeg,width=1920,height=1080,framerate=30/1" ! multifilesink location="frame%d.jpeg"
 
 async function InternalCreateVideo(params: {
-    /** AVCC */
-    fixedBuffer: LargeBuffer;
     baseMediaDecodeTimeInSeconds: number;
-    fps: number;
     width: number;
     height: number;
+    frames: {
+        nal: NALRawType;
+        frameDurationInSeconds: number;
+    }[];
+    sps: NALRawType;
+    pps: NALRawType;
 }): Promise<Buffer> {
 
     let folderPath = await CreateTempFolderPath();
 
     // These are important, and if they aren't correct bad things will happen.
-    let { width, height } = params;
-    
-    let NALs!: ReturnType<typeof getH264NALs>;
-
-    await profile("getH264NAL", async () => {
-        NALs = getH264NALs(
-            [{
-                path: "NO_PATH",
-                buf: params.fixedBuffer
-            }]
-        );
-
-        console.log(`Found NALs ${NALs.length}`);
-    });
+    let {baseMediaDecodeTimeInSeconds,  width, height, frames, sps, pps } = params;
     
     let outputPath = `${folderPath}_${randomUID("mp4")}.mp4`;
     await profile("createVideo3", async () => {
-        // Set our timescale high, so lose less precision from baseMediaDecodeTimeInSeconds.
-        let frameTimeInTimescale = 1000;
-        if(params.fps < 1) {
-            frameTimeInTimescale *= Math.ceil(1 / params.fps);
-        }
-        let timescale = params.fps * frameTimeInTimescale;
+        // Each frame has different duration, which could be completely unrelated to any fps, so just make a high and nice number.
+        let timescale = 5 * 6 * 30 * 100;
 
-        let frames = NALs.filter(x => x.nalObject.type === "slice").map(x => {
-            return {
-                nal: x,
-                frameTimeInTimescale: frameTimeInTimescale
-            };
-        });
         await createVideo3(outputPath, {
             timescale,
             width,
             height,
-            baseMediaDecodeTimeInTimescale: Math.round(params.baseMediaDecodeTimeInSeconds * timescale),
+            baseMediaDecodeTimeInTimescale: Math.round(baseMediaDecodeTimeInSeconds * timescale),
             addMoov: true,
-            frames: frames,
-            sps: NALs.filter(x => x.nalObject.type === "sps")[0],
-            pps: NALs.filter(x => x.nalObject.type === "pps")[0]
+            frames: frames.map(x => {
+                return {
+                    nal: x.nal,
+                    frameDurationInTimescale: Math.round(x.frameDurationInSeconds * timescale)
+                }
+            }),
+            sps: sps,
+            pps: pps
         });
     });
 
@@ -376,7 +392,7 @@ function createMP4(jpegPathPattern: string): LargeBuffer {
 // Create utility to run a script on process end. And the only good way to detect when a process exits, is to have a watchdog process.
 //  AND, we need to check process start time, in case a process is killed an another one is created with the same id in between our poll loop.
 
-
+/** buf in AVCC format */
 function getH264NALs(bufs: { buf: LargeBuffer, path: string }[], sps: SPS|undefined = undefined, pps: PPS|undefined = undefined): NALRawType[] {
     let nals: NALRawType[] = [];
 
