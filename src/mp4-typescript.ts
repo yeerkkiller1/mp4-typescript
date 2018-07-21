@@ -65,8 +65,10 @@ while(pos < data.getLength()) {
 (async () => {
     let output = await MuxVideo({
         nals,
-        baseMediaDecodeTimeInSeconds: 100,
-        fps: 5
+        baseMediaDecodeTimeInSeconds: +new Date() * 1000,
+        fps: 5,
+        width: 800,
+        height: 600
     });
 
     writeFileSync("./dist/output0NEW.mp4", output);
