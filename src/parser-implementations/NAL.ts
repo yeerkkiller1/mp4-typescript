@@ -1185,8 +1185,6 @@ export function ParseNalHeaderByte(b: number) {
         throw new Error(`Nal header byte is not a nal header byte. ${b}`);
     }
 
-    console.log(output);
-
     if(output.nal_unit_type === 7) {
         return "sps";
     } else if(output.nal_unit_type === 8) {
