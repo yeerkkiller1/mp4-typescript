@@ -207,7 +207,7 @@ export async function MuxVideo(params: {
 
     let { nals, ...passThroughParams } = params;
 
-    let fixedBuffer = new LargeBuffer(nals.map(nal => new LargeBuffer([NALLength(4).write({ curBitSize: 0, value: nal.length, getSizeAfter: () => 0 }), nal])))
+    let fixedBuffer = new LargeBuffer(nals.map(nal => new LargeBuffer([NALLength(4).write({ curBitSize: 0, value: -1, getSizeAfter: () => nal.length }), nal])));
 
     return await InternalCreateVideo({
         ...passThroughParams,
