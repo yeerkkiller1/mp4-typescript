@@ -38,7 +38,7 @@ export class LargeBuffer {
 
         while(readPos < stats.size) {
             let currentReadSize = Math.min(MaxUInt32, stats.size - readPos);
-            let buf = new Buffer(currentReadSize);
+            let buf = Buffer.alloc(currentReadSize);
             fs.readSync(fsHandler, buf, 0, currentReadSize, readPos);
             readPos += currentReadSize;
 
@@ -131,7 +131,7 @@ export class LargeBuffer {
             while(bytePos < bytes.length) {
                 let curByteCount = Math.min(MaxUInt32, bytes.length - bytePos);
                 let curBytes = bytes.slice(bytePos, bytePos + curByteCount);
-                let curBuffer = new Buffer(curBytes);
+                let curBuffer = Buffer.from(curBytes);
 
 
                 outputBuffers.push(curBuffer);
@@ -301,7 +301,7 @@ export class LargeBuffer {
     private getSmallBuffer(pos: number, length: number): Buffer {
         this.verifyByteAligned();
 
-        let buf = new Buffer(length);
+        let buf = Buffer.alloc(length);
         for(let i = 0; i < length; i++) {
             let absolutePos = pos + i;
             let bufInfo = this.getBuffer(absolutePos);

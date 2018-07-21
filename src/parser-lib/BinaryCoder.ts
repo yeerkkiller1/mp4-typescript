@@ -950,12 +950,12 @@ export const Box: <T extends string>(type: T) => { header: SerialObjectPrimitive
             
             if(size <= MaxUInt32) {
                 let size = contentSize + 8;
-                let buffer = new Buffer(8);
+                let buffer = Buffer.alloc(8);
                 buffer.writeUInt32BE(size, 0);
                 buffer.writeUInt32BE(textToUInt32(type), 4);
                 return new LargeBuffer([buffer]);
             } else {
-                let buffer = new Buffer(16);
+                let buffer = Buffer.alloc(16);
                 size += 8;
                 buffer.writeUInt32BE(1, 0);
                 buffer.writeUInt32BE(textToUInt32(type), 4);

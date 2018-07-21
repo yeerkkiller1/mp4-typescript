@@ -48,7 +48,7 @@ export function IntN(bytes: number, signed: boolean): SerialObjectPrimitive<numb
             if(value % 1 !== 0) {
                 throw new Error(`Cannot write number, as it is a decimal. ${value}`);
             }
-            let buffer = new Buffer(bytes);
+            let buffer = Buffer.alloc(bytes);
             if(bytes > 6) {
                 let extraBytes = bytes - 6;
                 buffer.writeUIntBE(value, extraBytes, bytes - extraBytes);
@@ -121,7 +121,7 @@ export const CString: SerialObjectPrimitive<string> = {
         let value = context.value;
         let unicodeBytes = encodeAsUTF8Bytes(value);
 
-        let output = new Buffer(unicodeBytes.length + 1);
+        let output = Buffer.alloc(unicodeBytes.length + 1);
         for(let i = 0; i < unicodeBytes.length; i++) {
             let byte = unicodeBytes[i];
             output.writeUInt8(byte, i);
@@ -147,7 +147,7 @@ export function DebugString(length: number): SerialObjectPrimitive<string> {
             let value = context.value;
             let bytes = debugStringToRawBytes(value);
 
-            let output = new Buffer(bytes);
+            let output = Buffer.from(bytes);
 
             return new LargeBuffer([output]);
         }
@@ -170,7 +170,7 @@ export function DebugStringRemaining(): SerialObjectPrimitive<string> {
         write(context) {
             let value = context.value;
 
-            let output = new Buffer(value.length);
+            let output = Buffer.alloc(value.length);
             for(let i = 0; i < output.length; i++) {
                 let byte = output[i];
                 output.writeUInt8(byte, i);
@@ -271,7 +271,7 @@ export function bitMapping<T extends { [key: string]: BitCount }>(bitMap: T): Se
             }
 
             let bytePos = 0;
-            let buffer = new Buffer(bits.length / 8);
+            let buffer = Buffer.alloc(bits.length / 8);
             while(bits.length > 0) {
                 let byteBits = bits.slice(0, 8);
                 bits = bits.slice(8);

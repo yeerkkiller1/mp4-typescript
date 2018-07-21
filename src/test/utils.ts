@@ -35,7 +35,7 @@ function prettyPrint(obj: any): string {
                 nums.push(b[i]);
             }
         }
-        output = output.replace(text, `new LargeBuffer([new Buffer([${nums.join(",")}])])`);
+        output = output.replace(text, `new LargeBuffer([Buffer.from([${nums.join(",")}])])`);
     }
     return output;
 }

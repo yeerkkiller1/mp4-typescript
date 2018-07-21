@@ -16,6 +16,8 @@ import * as net from "net";
 import * as Jimp from "jimp";
 let jimpAny = Jimp as any;
 
+//console.log(ParseNalHeaderByte(33));
+
 /** The header byte is the first byte after the start code. */
 export function ParseNalHeaderByte(headerByte: number): "sps"|"pps"|"sei"|"slice"|"unknown" {
     return NAL.ParseNalHeaderByte(headerByte);
@@ -27,7 +29,7 @@ export function ParseNalHeaderByte(headerByte: number): "sps"|"pps"|"sei"|"slice
 //  and our whole program is only about 10% of x264, so we can leave it in javascript.
 // Also, writing to the jpegs is surprisingly slow. Maybe about 27ms per frame, when x264 takes about 70ms per frame to encode,
 //  so writing the jpegs is really way too slow.
-//var data = new Buffer([60, 70]);
+//var data = Buffer.from([60, 70]);
 //data = native.hello(data);
 //console.log(data.toString());
 

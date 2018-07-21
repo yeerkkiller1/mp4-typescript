@@ -77,7 +77,7 @@ export function ConvertAnnexBToAVCC(buf: LargeBuffer): LargeBuffer {
         size -= b3 * Math.pow(2, 8);
         let b4 = size;
 
-        nalsAndLengths.push(new LargeBuffer([new Buffer([b1, b2, b3, b4])]));
+        nalsAndLengths.push(new LargeBuffer([Buffer.from([b1, b2, b3, b4])]));
         nalsAndLengths.push(nakedNal);
     }
 
@@ -100,7 +100,7 @@ export function NALLength(sizeByteLength = 4): SerialObjectPrimitiveLength<{}> {
         },
         write(context) {
             let contentSize = context.getSizeAfter();
-            let buf = new Buffer(sizeByteLength);
+            let buf = Buffer.alloc(sizeByteLength);
             buf.writeUIntBE(contentSize, 0, sizeByteLength);
             return new LargeBuffer([ buf ]);
         }
@@ -144,7 +144,7 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
 
             pPos.v += totalLength;
 
-            let subBuffer = new LargeBuffer([new Buffer(finalBytes)]);
+            let subBuffer = new LargeBuffer([Buffer.from(finalBytes)]);
             return parseObject(subBuffer, template);
         },
         write(context) {
@@ -220,7 +220,7 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
                 finalBytes.push(realBytes[i]);
             }
 
-            let finalBuf = new LargeBuffer([new Buffer(finalBytes)]);
+            let finalBuf = new LargeBuffer([Buffer.from(finalBytes)]);
 
             let curPos = 0;
             for(let offset of offsetList) {
@@ -285,7 +285,7 @@ const IsMoreDataLeft: SerialObjectPrimitive<boolean> = {
         return bitOffset === context.bitOffset;
     },
     write() {
-        return new LargeBuffer([new Buffer(0)]);
+        return new LargeBuffer([Buffer.alloc(0)]);
     }
 };
 
@@ -562,7 +562,7 @@ const FunnyNumberType: SerialObjectPrimitive<number> = {
     write(context) {
         let size = Math.ceil(context.value / 0xFF);
         let pos = 0;
-        let buf = new Buffer(size);
+        let buf = Buffer.alloc(size);
 
         
         let val = context.value;
@@ -1173,7 +1173,7 @@ export function ParseNalHeaderByte(b: number) {
         end: 1,
         endBits: 8,
         pPos: { v: 0 },
-        buffer: new LargeBuffer([new Buffer(b)]),
+        buffer: new LargeBuffer([Buffer.from([b])]),
     };
     let output = bitMapping({
         forbidden_zero_bit: 1,
@@ -1184,6 +1184,8 @@ export function ParseNalHeaderByte(b: number) {
     if(output.forbidden_zero_bit !== 0) {
         throw new Error(`Nal header byte is not a nal header byte. ${b}`);
     }
+
+    console.log(output);
 
     if(output.nal_unit_type === 7) {
         return "sps";
