@@ -1,20 +1,79 @@
 import { createSimulatedFrame } from "./media/jpeg";
 
 import { range, wrapAsync, randomUID } from "./util/misc";
-import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw, NALLength } from "./parser-implementations/NAL";
+import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw, NALLength, NALCreateRaw } from "./parser-implementations/NAL";
 import * as NAL from "./parser-implementations/NAL";
 import { LargeBuffer } from "./parser-lib/LargeBuffer";
-import { parseObject } from "./parser-lib/BinaryCoder";
+import { parseObject, filterBox, writeObject } from "./parser-lib/BinaryCoder";
 import { createVideo3 } from "./media/create-mp4";
-import { writeFileSync, readFile } from "fs";
+import { writeFileSync, readFile, readFileSync } from "fs";
 import { CreateTempFolderPath } from "temp-folder";
 import { SetTimeoutAsync } from "pchannel";
-import { testReadFile } from "./test/utils";
+import { testReadFile, testWriteFile, testWrite } from "./test/utils";
 
 import * as net from "net";
 
 import * as Jimp from "jimp";
+import { RootBox } from "./parser-implementations/BoxObjects";
 let jimpAny = Jimp as any;
+
+//testReadFile("C:/scratch/test.mp4");
+//testReadFile("./dist/output0.mp4");
+//testWriteFile("./dist/output0.mp4");
+
+//testReadFile("./dist/output0.mp4");
+//testReadFile("./dist/output0NEW.mp4");
+
+/*
+testWrite(
+    LargeBuffer.FromFile("./dist/output0.mp4"),
+    LargeBuffer.FromFile("./dist/output0NEW.mp4")
+);
+*/
+
+/*
+//let inputFile = "./dist/output0.mp4";
+let inputFile = "./dist/test.mp4";
+
+let input = parseObject(LargeBuffer.FromFile(inputFile), RootBox);
+testReadFile(inputFile);
+
+let nals: Buffer[] = [];
+
+let avcC = filterBox(input)("moov")("trak")("mdia")("minf")("stbl")("stsd")("avc1")("avcC")();
+let spsObject = avcC.sequenceParameterSets[0].sps;
+let sps = writeObject(NALCreateRaw(2), spsObject);
+
+let ppsObject = avcC.pictureParameterSets[0].pps;
+let pps = writeObject(NALCreateRaw(2), ppsObject);
+
+nals.push(sps.DEBUG_getBuffer().slice(2));
+nals.push(pps.DEBUG_getBuffer().slice(2));
+
+let data = filterBox(input)("mdat")().bytes;
+let pos = 0;
+while(pos < data.getLength()) {
+    let length = data.readUInt32BE(pos);
+    pos += 4;
+    let buf = data.slice(pos, pos + length);
+    pos += length;
+    nals.push(buf.DEBUG_getBuffer());
+
+    console.log(buf.getLength());
+}
+
+(async () => {
+    let output = await MuxVideo({
+        nals,
+        baseMediaDecodeTimeInSeconds: 100,
+        fps: 5
+    });
+
+    writeFileSync("./dist/output0NEW.mp4", output);
+})();
+//*/
+
+
 
 //console.log(ParseNalHeaderByte(33));
 
@@ -164,6 +223,9 @@ export async function CreateVideo(params: {
     jpegPattern: string;
     baseMediaDecodeTimeInSeconds: number;
     fps: number;
+    // These are important, and if they aren't correct bad things will happen.
+    width: number;
+    height: number;
 }): Promise<Buffer> {
     let { x264 } = eval(`require("x264-npm")`);
 
@@ -177,11 +239,6 @@ export async function CreateVideo(params: {
 
     let timescale = params.fps;
     let frameTimeInTimescale = 1;
-    // Hmm... it doesn't appear as if video players EVEN look at these. So... I'm going to just set them to 0, because
-    //  getting the values could be really difficult and slow (we have to figure out the jpegPattern, and then decode the jpeg),
-    //  and it doesn't even appear to matter.
-    let width = 0;
-    let height = 0;
     
     let NALs!: ReturnType<typeof getH264NALs>;
     
@@ -199,10 +256,13 @@ export async function CreateVideo(params: {
 
 /** 'mux', but with no audio, so I don't really know what this is. */
 export async function MuxVideo(params: {
-    /** Not annex B or AVCC. They should have no start codes or start lengths. */
+    /** Not annex B or AVCC. They should have no start codes or start lengths, and each Buffer should be one NAL. */
     nals: Buffer[];
     baseMediaDecodeTimeInSeconds: number;
     fps: number;
+    // These are important, and if they aren't correct bad things will happen.
+    width: number;
+    height: number;
 }): Promise<Buffer> {
 
     let { nals, ...passThroughParams } = params;
@@ -230,15 +290,14 @@ async function InternalCreateVideo(params: {
     fixedBuffer: LargeBuffer;
     baseMediaDecodeTimeInSeconds: number;
     fps: number;
+    width: number;
+    height: number;
 }): Promise<Buffer> {
 
     let folderPath = await CreateTempFolderPath();
 
-    // Hmm... it doesn't appear as if video players EVEN look at these. So... I'm going to just set them to 0, because
-    //  getting the values could be really difficult and slow (we have to figure out the jpegPattern, and then decode the jpeg),
-    //  and it doesn't even appear to matter.
-    let width = 0;
-    let height = 0;
+    // These are important, and if they aren't correct bad things will happen.
+    let { width, height } = params;
     
     let NALs!: ReturnType<typeof getH264NALs>;
 

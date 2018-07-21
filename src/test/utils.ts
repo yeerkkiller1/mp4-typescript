@@ -50,7 +50,7 @@ function testRead(path: string, buf: LargeBuffer) {
     //writeFileSync(basename(path) + ".json", "test");
 }
 
-function testWriteFile(path: string) {
+export function testWriteFile(path: string) {
     testReadFile(path);
 
     let oldBuf = LargeBuffer.FromFile(path);
@@ -62,7 +62,7 @@ function testWriteFile(path: string) {
 
     console.log(oldBuf.getLength(), newBuf.getLength());
 }
-function testWrite(oldBuf: LargeBuffer, newBuf: LargeBuffer) {
+export function testWrite(oldBuf: LargeBuffer, newBuf: LargeBuffer) {
     // Compare newBuffers with output, using getBufferWriteContext to get the context of each buffer
     let bufLen = oldBuf.getLength();
     let rewriteLen = newBuf.getLength();
@@ -91,6 +91,8 @@ function testWrite(oldBuf: LargeBuffer, newBuf: LargeBuffer) {
     if(bufLen !== rewriteLen) {
         throw new Error(`Length of buffer changed. Should be ${bufLen}, was ${rewriteLen}`);
     }
+
+    console.log(`Files are the same`);
 
     function getContext(buffer: LargeBuffer, pos: number, contextSize = 32, bits = false): string {
         let beforePos = pos - contextSize;

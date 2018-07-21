@@ -311,6 +311,10 @@ export class LargeBuffer {
         return buf;
     }
 
+    public DEBUG_getBuffer(): Buffer {
+        return this.getSmallBuffer(0, this.getLength());
+    }
+
     public getLength() {
         this.verifyByteAligned();
 

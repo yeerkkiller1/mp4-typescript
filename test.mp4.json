@@ -1,0 +1,683 @@
+{
+    "boxes": [
+        {
+            "header": {
+                "size": 28,
+                "type": "ftyp",
+                "headerSize": 8
+            },
+            "type": "ftyp",
+            "major_brand": "iso5",
+            "minor_version": 1,
+            "compatible_brands": [
+                "avc1",
+                "iso5",
+                "dash"
+            ]
+        },
+        {
+            "header": {
+                "size": 640,
+                "type": "moov",
+                "headerSize": 8
+            },
+            "type": "moov",
+            "boxes": [
+                {
+                    "header": {
+                        "size": 108,
+                        "type": "mvhd",
+                        "headerSize": 8
+                    },
+                    "type": "mvhd",
+                    "version": 0,
+                    "flags": 0,
+                    "times": {
+                        "creation_time": 0,
+                        "modification_time": 0,
+                        "timescale": 10,
+                        "duration": 0
+                    },
+                    "rate": 1,
+                    "volume": 1,
+                    "reserved": 0,
+                    "reserved0": 0,
+                    "reserved1": 0,
+                    "matrix": [
+                        65536,
+                        0,
+                        0,
+                        0,
+                        65536,
+                        0,
+                        0,
+                        0,
+                        1073741824
+                    ],
+                    "pre_defined": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "next_track_ID": 2
+                },
+                {
+                    "header": {
+                        "size": 40,
+                        "type": "mvex",
+                        "headerSize": 8
+                    },
+                    "type": "mvex",
+                    "boxes": [
+                        {
+                            "header": {
+                                "size": 32,
+                                "type": "trex",
+                                "headerSize": 8
+                            },
+                            "type": "trex",
+                            "version": 0,
+                            "flags": 0,
+                            "track_ID": 1,
+                            "default_sample_description_index": 1,
+                            "default_sample_duration": 1,
+                            "default_sample_size": 0,
+                            "default_sample_flags": {
+                                "reserved": 0,
+                                "is_leading": 0,
+                                "sample_depends_on": 0,
+                                "sample_is_depended_on": 0,
+                                "sample_has_redundancy": 0,
+                                "sample_padding_value": 0,
+                                "sample_is_non_sync_sample": 1,
+                                "sample_degradation_priority": 0
+                            }
+                        }
+                    ]
+                },
+                {
+                    "header": {
+                        "size": 484,
+                        "type": "trak",
+                        "headerSize": 8
+                    },
+                    "type": "trak",
+                    "boxes": [
+                        {
+                            "header": {
+                                "size": 92,
+                                "type": "tkhd",
+                                "headerSize": 8
+                            },
+                            "type": "tkhd",
+                            "version": 0,
+                            "flags": {
+                                "reserved": 0,
+                                "track_size_is_aspect_ratio": 0,
+                                "track_in_preview": 0,
+                                "track_in_movie": 1,
+                                "track_enabled": 1
+                            },
+                            "times": {
+                                "creation_time": 0,
+                                "modification_time": 0,
+                                "track_ID": 1,
+                                "reserved": 0,
+                                "duration": 0
+                            },
+                            "reserved0": 0,
+                            "reserved1": 0,
+                            "layer": 0,
+                            "alternate_group": 0,
+                            "volume": 0,
+                            "reserved2": 0,
+                            "matrix": [
+                                65536,
+                                0,
+                                0,
+                                0,
+                                65536,
+                                0,
+                                0,
+                                0,
+                                1073741824
+                            ],
+                            "width": 0,
+                            "height": 0
+                        },
+                        {
+                            "header": {
+                                "size": 384,
+                                "type": "mdia",
+                                "headerSize": 8
+                            },
+                            "type": "mdia",
+                            "boxes": [
+                                {
+                                    "header": {
+                                        "size": 32,
+                                        "type": "mdhd",
+                                        "headerSize": 8
+                                    },
+                                    "type": "mdhd",
+                                    "version": 0,
+                                    "flags": 0,
+                                    "creation_time": 0,
+                                    "modification_time": 0,
+                                    "timescale": 10,
+                                    "duration": 0,
+                                    "language": "und",
+                                    "pre_defined": 0
+                                },
+                                {
+                                    "header": {
+                                        "size": 45,
+                                        "type": "hdlr",
+                                        "headerSize": 8
+                                    },
+                                    "type": "hdlr",
+                                    "version": 0,
+                                    "flags": 0,
+                                    "pre_defined": 0,
+                                    "handler_type": "vide",
+                                    "reserved": [
+                                        0,
+                                        0,
+                                        0
+                                    ],
+                                    "name": "VideoHandler"
+                                },
+                                {
+                                    "header": {
+                                        "size": 299,
+                                        "type": "minf",
+                                        "headerSize": 8
+                                    },
+                                    "type": "minf",
+                                    "boxes": [
+                                        {
+                                            "header": {
+                                                "size": 20,
+                                                "type": "vmhd",
+                                                "headerSize": 8
+                                            },
+                                            "type": "vmhd",
+                                            "version": 0,
+                                            "flags": 1,
+                                            "graphicsmode": 0,
+                                            "opcolor": [
+                                                0,
+                                                0,
+                                                0
+                                            ]
+                                        },
+                                        {
+                                            "header": {
+                                                "size": 36,
+                                                "type": "dinf",
+                                                "headerSize": 8
+                                            },
+                                            "type": "dinf",
+                                            "boxes": [
+                                                {
+                                                    "header": {
+                                                        "size": 28,
+                                                        "type": "dref",
+                                                        "headerSize": 8
+                                                    },
+                                                    "type": "dref",
+                                                    "version": 0,
+                                                    "flags": 0,
+                                                    "entry_count": 1,
+                                                    "boxes": [
+                                                        {
+                                                            "header": {
+                                                                "size": 12,
+                                                                "type": "url ",
+                                                                "headerSize": 8
+                                                            },
+                                                            "type": "url ",
+                                                            "version": 0,
+                                                            "flags": {
+                                                                "reserved": 0,
+                                                                "media_is_in_same_file": 1
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "header": {
+                                                "size": 235,
+                                                "type": "stbl",
+                                                "headerSize": 8
+                                            },
+                                            "type": "stbl",
+                                            "boxes": [
+                                                {
+                                                    "header": {
+                                                        "size": 159,
+                                                        "type": "stsd",
+                                                        "headerSize": 8
+                                                    },
+                                                    "type": "stsd",
+                                                    "version": 0,
+                                                    "flags": 0,
+                                                    "entry_count": 1,
+                                                    "boxes": [
+                                                        {
+                                                            "header": {
+                                                                "size": 143,
+                                                                "type": "avc1",
+                                                                "headerSize": 8
+                                                            },
+                                                            "type": "avc1",
+                                                            "reserved": [
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0
+                                                            ],
+                                                            "data_reference_index": 1,
+                                                            "pre_defined": 0,
+                                                            "reserved1": 0,
+                                                            "pre_defined1": [
+                                                                0,
+                                                                0,
+                                                                0
+                                                            ],
+                                                            "width": 0,
+                                                            "height": 0,
+                                                            "horizresolution": 4718592,
+                                                            "vertresolution": 4718592,
+                                                            "reserved2": 0,
+                                                            "frame_count": 1,
+                                                            "compressorname": [
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0,
+                                                                0
+                                                            ],
+                                                            "depth": 24,
+                                                            "pre_defined2": -1,
+                                                            "boxes": [
+                                                                {
+                                                                    "header": {
+                                                                        "size": 41,
+                                                                        "type": "avcC",
+                                                                        "headerSize": 8
+                                                                    },
+                                                                    "type": "avcC",
+                                                                    "configurationVersion": 1,
+                                                                    "AVCProfileIndication": 100,
+                                                                    "profile_compatibility": 0,
+                                                                    "AVCLevelIndication": 40,
+                                                                    "reserved0": [
+                                                                        1,
+                                                                        1,
+                                                                        1,
+                                                                        1,
+                                                                        1,
+                                                                        1
+                                                                    ],
+                                                                    "lengthSizeMinusOne": 3,
+                                                                    "reserved1": [
+                                                                        1,
+                                                                        1,
+                                                                        1
+                                                                    ],
+                                                                    "numOfSequenceParameterSets": 1,
+                                                                    "sequenceParameterSets": [
+                                                                        {
+                                                                            "sps": {
+                                                                                "NALLength": {
+                                                                                    "size": 19
+                                                                                },
+                                                                                "bitHeader0": {
+                                                                                    "forbidden_zero_bit": 0,
+                                                                                    "nal_ref_idc": 3,
+                                                                                    "nal_unit_type": 7
+                                                                                },
+                                                                                "forbidden_zero_bit_check": {},
+                                                                                "extension": {
+                                                                                    "nalUnitHeaderBytes": 1
+                                                                                },
+                                                                                "nalObject": {
+                                                                                    "type": "sps",
+                                                                                    "nal": "Buffer(16)"
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    ],
+                                                                    "numOfPictureParameterSets": 1,
+                                                                    "pictureParameterSets": [
+                                                                        {
+                                                                            "pps": {
+                                                                                "NALLength": {
+                                                                                    "size": 7
+                                                                                },
+                                                                                "bitHeader0": {
+                                                                                    "forbidden_zero_bit": 0,
+                                                                                    "nal_ref_idc": 3,
+                                                                                    "nal_unit_type": 8
+                                                                                },
+                                                                                "forbidden_zero_bit_check": {},
+                                                                                "extension": {
+                                                                                    "nalUnitHeaderBytes": 1
+                                                                                },
+                                                                                "nalObject": {
+                                                                                    "type": "pps",
+                                                                                    "nal": "Buffer(4)"
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    ],
+                                                                    "remainingBytes": []
+                                                                },
+                                                                {
+                                                                    "header": {
+                                                                        "size": 16,
+                                                                        "type": "pasp",
+                                                                        "headerSize": 8
+                                                                    },
+                                                                    "type": "pasp",
+                                                                    "hSpacing": 1,
+                                                                    "vSpacing": 1
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "header": {
+                                                        "size": 16,
+                                                        "type": "stts",
+                                                        "headerSize": 8
+                                                    },
+                                                    "type": "stts",
+                                                    "version": 0,
+                                                    "flags": 0,
+                                                    "entry_count": 0,
+                                                    "samples": []
+                                                },
+                                                {
+                                                    "header": {
+                                                        "size": 16,
+                                                        "type": "stsc",
+                                                        "headerSize": 8
+                                                    },
+                                                    "type": "stsc",
+                                                    "version": 0,
+                                                    "flags": 0,
+                                                    "entry_count": 0,
+                                                    "entries": []
+                                                },
+                                                {
+                                                    "header": {
+                                                        "size": 20,
+                                                        "type": "stsz",
+                                                        "headerSize": 8
+                                                    },
+                                                    "type": "stsz",
+                                                    "version": 0,
+                                                    "flags": 0,
+                                                    "sample_size": 0,
+                                                    "sample_count": 0,
+                                                    "sample_sizes": []
+                                                },
+                                                {
+                                                    "header": {
+                                                        "size": 16,
+                                                        "type": "stco",
+                                                        "headerSize": 8
+                                                    },
+                                                    "type": "stco",
+                                                    "version": 0,
+                                                    "flags": 0,
+                                                    "entry_count": 0,
+                                                    "chunk_offsets": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "header": {
+                "size": 24,
+                "type": "styp",
+                "headerSize": 8
+            },
+            "type": "styp",
+            "major_brand": "msdh",
+            "minor_version": 0,
+            "compatible_brands": [
+                "msdh",
+                "msix"
+            ]
+        },
+        {
+            "header": {
+                "size": 44,
+                "type": "sidx",
+                "headerSize": 8
+            },
+            "type": "sidx",
+            "version": 0,
+            "flags": 0,
+            "reference_ID": 1,
+            "timescale": 10,
+            "times": {
+                "earliest_presentation_time": 0,
+                "first_offset": 0
+            },
+            "reserved": 0,
+            "reference_count": 1,
+            "ref": [
+                {
+                    "a": {
+                        "reference_type": 0,
+                        "reference_offset": 781551
+                    },
+                    "subsegment_duration": 10,
+                    "SAP": {
+                        "starts_with_SAP": 1,
+                        "SAP_type": 1,
+                        "SAP_delta_time": 0
+                    }
+                }
+            ]
+        },
+        {
+            "header": {
+                "size": 168,
+                "type": "moof",
+                "headerSize": 8
+            },
+            "type": "moof",
+            "boxes": [
+                {
+                    "header": {
+                        "size": 16,
+                        "type": "mfhd",
+                        "headerSize": 8
+                    },
+                    "type": "mfhd",
+                    "version": 0,
+                    "flags": 0,
+                    "sequence_number": 1
+                },
+                {
+                    "header": {
+                        "size": 144,
+                        "type": "traf",
+                        "headerSize": 8
+                    },
+                    "type": "traf",
+                    "boxes": [
+                        {
+                            "header": {
+                                "size": 16,
+                                "type": "tfhd",
+                                "headerSize": 8
+                            },
+                            "type": "tfhd",
+                            "version": 0,
+                            "flags": {
+                                "reserved3": 0,
+                                "default_base_is_moof": 1,
+                                "duration_is_empty": 0,
+                                "reserved2": 0,
+                                "default_sample_flags_present": 0,
+                                "default_sample_size_present": 0,
+                                "default_sample_duration_present": 0,
+                                "reserved1": 0,
+                                "sample_description_index_present": 0,
+                                "base_data_offset_present": 0
+                            },
+                            "track_ID": 1,
+                            "values": {}
+                        },
+                        {
+                            "header": {
+                                "size": 16,
+                                "type": "tfdt",
+                                "headerSize": 8
+                            },
+                            "type": "tfdt",
+                            "version": 0,
+                            "flags": 0,
+                            "values": {
+                                "baseMediaDecodeTime": 0
+                            }
+                        },
+                        {
+                            "header": {
+                                "size": 104,
+                                "type": "trun",
+                                "headerSize": 8
+                            },
+                            "type": "trun",
+                            "version": 0,
+                            "flags": {
+                                "reserved2": 0,
+                                "sample_composition_time_offsets_present": 1,
+                                "sample_flags_present": 0,
+                                "sample_size_present": 1,
+                                "sample_duration_present": 0,
+                                "reserved1": 0,
+                                "first_sample_flags_present": 1,
+                                "reserved0": 0,
+                                "data_offset_present": 1
+                            },
+                            "sample_count": 10,
+                            "values": {
+                                "data_offset": 176,
+                                "first_sample_flags": {
+                                    "reserved": 0,
+                                    "is_leading": 0,
+                                    "sample_depends_on": 0,
+                                    "sample_is_depended_on": 0,
+                                    "sample_has_redundancy": 0,
+                                    "sample_padding_value": 0,
+                                    "sample_is_non_sync_sample": 0,
+                                    "sample_degradation_priority": 0
+                                }
+                            },
+                            "sample_values": [
+                                {
+                                    "sample_size": 111998,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 85344,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 73805,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 73448,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 72636,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 72507,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 72733,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 72602,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 73383,
+                                    "sample_composition_time_offset": 0
+                                },
+                                {
+                                    "sample_size": 72919,
+                                    "sample_composition_time_offset": 0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "header": {
+                "size": 781383,
+                "type": "mdat",
+                "headerSize": 8
+            },
+            "type": "mdat",
+            "bytes": "Buffer(781375)"
+        }
+    ]
+}
