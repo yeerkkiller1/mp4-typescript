@@ -3,6 +3,9 @@ npm-debug.log
 .DS_Store
 stats.html
 src
+*.mp4
+*.jpeg
+*.tgz
 
 !src/**/*.d.ts
 !src/native/nativeWrapper.js

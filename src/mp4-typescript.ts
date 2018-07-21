@@ -316,12 +316,17 @@ async function InternalCreateVideo(params: {
     
     let outputPath = `${folderPath}_${randomUID("mp4")}.mp4`;
     await profile("createVideo3", async () => {
-        let timescale = params.fps;
+        // Set our timescale high, so lose less precision from baseMediaDecodeTimeInSeconds.
+        let frameTimeInTimescale = 1000;
+        if(params.fps < 1) {
+            frameTimeInTimescale *= Math.ceil(1 / params.fps);
+        }
+        let timescale = params.fps * frameTimeInTimescale;
 
         let frames = NALs.filter(x => x.nalObject.type === "slice").map(x => {
             return {
                 nal: x,
-                frameTimeInTimescale: 1
+                frameTimeInTimescale: frameTimeInTimescale
             };
         });
         await createVideo3(outputPath, {
