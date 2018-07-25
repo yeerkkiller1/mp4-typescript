@@ -35,7 +35,7 @@
                     "times": {
                         "creation_time": 0,
                         "modification_time": 0,
-                        "timescale": 10,
+                        "timescale": 90000,
                         "duration": 0
                     },
                     "rate": 1,
@@ -83,7 +83,7 @@
                             "flags": 0,
                             "track_ID": 1,
                             "default_sample_description_index": 1,
-                            "default_sample_duration": 1,
+                            "default_sample_duration": 30000,
                             "default_sample_size": 0,
                             "default_sample_flags": {
                                 "reserved": 0,
@@ -145,8 +145,8 @@
                                 0,
                                 1073741824
                             ],
-                            "width": 0,
-                            "height": 0
+                            "width": 1920,
+                            "height": 1080
                         },
                         {
                             "header": {
@@ -167,7 +167,7 @@
                                     "flags": 0,
                                     "creation_time": 0,
                                     "modification_time": 0,
-                                    "timescale": 10,
+                                    "timescale": 90000,
                                     "duration": 0,
                                     "language": "und",
                                     "pre_defined": 0
@@ -292,8 +292,8 @@
                                                                 0,
                                                                 0
                                                             ],
-                                                            "width": 0,
-                                                            "height": 0,
+                                                            "width": 1920,
+                                                            "height": 1080,
                                                             "horizresolution": 4718592,
                                                             "vertresolution": 4718592,
                                                             "reserved2": 0,
@@ -505,7 +505,7 @@
             "version": 0,
             "flags": 0,
             "reference_ID": 1,
-            "timescale": 10,
+            "timescale": 90000,
             "times": {
                 "earliest_presentation_time": 0,
                 "first_offset": 0
@@ -516,9 +516,9 @@
                 {
                     "a": {
                         "reference_type": 0,
-                        "reference_offset": 781551
+                        "reference_offset": 6558610
                     },
-                    "subsegment_duration": 10,
+                    "subsegment_duration": 300000,
                     "SAP": {
                         "starts_with_SAP": 1,
                         "SAP_type": 1,
@@ -529,7 +529,7 @@
         },
         {
             "header": {
-                "size": 168,
+                "size": 172,
                 "type": "moof",
                 "headerSize": 8
             },
@@ -548,7 +548,7 @@
                 },
                 {
                     "header": {
-                        "size": 144,
+                        "size": 148,
                         "type": "traf",
                         "headerSize": 8
                     },
@@ -579,15 +579,15 @@
                         },
                         {
                             "header": {
-                                "size": 16,
+                                "size": 20,
                                 "type": "tfdt",
                                 "headerSize": 8
                             },
                             "type": "tfdt",
-                            "version": 0,
+                            "version": 1,
                             "flags": 0,
                             "values": {
-                                "baseMediaDecodeTime": 0
+                                "baseMediaDecodeTime": 137896676102250
                             }
                         },
                         {
@@ -611,7 +611,7 @@
                             },
                             "sample_count": 10,
                             "values": {
-                                "data_offset": 176,
+                                "data_offset": 180,
                                 "first_sample_flags": {
                                     "reserved": 0,
                                     "is_leading": 0,
@@ -625,43 +625,43 @@
                             },
                             "sample_values": [
                                 {
-                                    "sample_size": 111998,
+                                    "sample_size": 1356112,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 85344,
+                                    "sample_size": 21278,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 73805,
+                                    "sample_size": 1215424,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 73448,
+                                    "sample_size": 21361,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 72636,
+                                    "sample_size": 1260098,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 72507,
+                                    "sample_size": 22492,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 72733,
+                                    "sample_size": 1335334,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 72602,
+                                    "sample_size": 22266,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 73383,
+                                    "sample_size": 1280577,
                                     "sample_composition_time_offset": 0
                                 },
                                 {
-                                    "sample_size": 72919,
+                                    "sample_size": 23488,
                                     "sample_composition_time_offset": 0
                                 }
                             ]
@@ -672,12 +672,12 @@
         },
         {
             "header": {
-                "size": 781383,
+                "size": 6558438,
                 "type": "mdat",
                 "headerSize": 8
             },
             "type": "mdat",
-            "bytes": "Buffer(781375)"
+            "bytes": "Buffer(6558430)"
         }
     ]
 }

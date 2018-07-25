@@ -24,136 +24,11 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
-/*
-testWrite(
-    LargeBuffer.FromFile("./dist/output0.mp4"),
-    LargeBuffer.FromFile("./dist/output0NEW.mp4")
-);
-*/
-
-/*
-//let inputFile = "./dist/output0.mp4";
-let inputFile = "./dist/test.mp4";
-
-let input = parseObject(LargeBuffer.FromFile(inputFile), RootBox);
-testReadFile(inputFile);
-
-let nals: Buffer[] = [];
-
-let avcC = filterBox(input)("moov")("trak")("mdia")("minf")("stbl")("stsd")("avc1")("avcC")();
-let spsObject = avcC.sequenceParameterSets[0].sps;
-let sps = writeObject(NALCreateRaw(2), spsObject);
-
-let ppsObject = avcC.pictureParameterSets[0].pps;
-let pps = writeObject(NALCreateRaw(2), ppsObject);
-
-nals.push(sps.DEBUG_getBuffer().slice(2));
-nals.push(pps.DEBUG_getBuffer().slice(2));
-
-let data = filterBox(input)("mdat")().bytes;
-let pos = 0;
-while(pos < data.getLength()) {
-    let length = data.readUInt32BE(pos);
-    pos += 4;
-    let buf = data.slice(pos, pos + length);
-    pos += length;
-    nals.push(buf.DEBUG_getBuffer());
-
-    console.log(buf.getLength());
-}
-
-(async () => {
-    let output = await MuxVideo({
-        nals,
-        baseMediaDecodeTimeInSeconds: +new Date() * 1000,
-        fps: 5,
-        width: 800,
-        height: 600
-    });
-
-    writeFileSync("./dist/output0NEW.mp4", output);
-})();
-//*/
-
-
-
-//console.log(ParseNalHeaderByte(33));
 
 /** The header byte is the first byte after the start code. */
 export function ParseNalHeaderByte(headerByte: number): "sps"|"pps"|"sei"|"slice"|"unknown" {
     return NAL.ParseNalHeaderByte(headerByte);
 }
-
-//import * as native from "native";
-// Hmm... we don't actually need this. I was going to use it for ConvertAnnexBToAVCC,
-//  because it took ~25% of the total time. But... then I updated to the latest version of node, and now it takes less than 10%,
-//  and our whole program is only about 10% of x264, so we can leave it in javascript.
-// Also, writing to the jpegs is surprisingly slow. Maybe about 27ms per frame, when x264 takes about 70ms per frame to encode,
-//  so writing the jpegs is really way too slow.
-//var data = Buffer.from([60, 70]);
-//data = native.hello(data);
-//console.log(data.toString());
-
-/*
-wrapAsync(async () => {
-    for(let i = 0; i < 100; i++) {
-        let frame = await createSimulatedFrame(i, 1920, 1080);
-        writeFileSync(`./dist/frame${i}.jpeg`, frame);
-    }
-});
-//*/
-
-/*
-var server = net.createServer(socket => {
-    var buffers: Buffer[] = [];
-    console.log("Got client");
-    socket.on("close", () => {
-        console.log("closed");
-
-        let data = new LargeBuffer(buffers);
-        data = ConvertAnnexBToAVCC(data);
-
-        let nals = parseObject(data, NALList(4, undefined, undefined));
-        for(let NAL of nals.NALs) {
-            let nal = NAL.nalObject;
-            console.log(nal.type);
-            if(nal.type === "slice") {
-                console.log("pic_order_cnt_lsb", nal.nal.slice_header.pic_order_cnt_lsb, nal.nal.slice_header.sliceTypeStr);
-            }
-        }
-        console.log(`Got ${nals.NALs.length} nals`);
-    });
-    socket.on("error", () => {
-        console.log("error");
-    });
-    socket.on("data", (data) => {
-        buffers.push(data);
-    });
-});
-server.listen(3000, "0.0.0.0");
-*/
-
-
-//testReadFile("")
-
-//todonext
-// expose and test highly variable FPS video, via sample_duration to stretch frames.
-
-/*
-(async () => {
-    let nals = LargeBuffer.FromFile("C:/scratch/frames.nal")
-    let avccNals = ConvertAnnexBToAVCC(nals);
-    let video = await InternalCreateVideo({
-        fixedBuffer: avccNals,
-        baseMediaDecodeTimeInSeconds: 0,
-        fps: 10
-    });
-
-    writeFileSync("C:/scratch/what.mp4", video);
-})
-()
-;
-//*/
 
 async function createSimulateFrame(time: number, text: string, width: number, height: number): Promise<Buffer> {
     async function loadFont(type: string): Promise<any> {
@@ -363,22 +238,6 @@ async function InternalCreateVideo(params: {
     return await readFilePromise(outputPath);
 }
 
-//*/
-
-//todonext
-//  Use temp-folder to create a place we can store the intermediate nal files (and .mp4 files) without slowly filling up the disk
-//      as our process is spuriously terminated.
-//  Then create the function that takes a string path to jpegs (using %d to access multiple), and returns a Buffer, that is a mp4 file.
-//      Consider an option that returns a file path instead, which is expected to be moved or deleted by the caller?
-
-
-/*
-function createMP4(jpegPathPattern: string): LargeBuffer {
-    // os.tmpdir
-    // process.on('exit')
-}
-*/
-
 // get-process explorer | % { @{ 'Id'=$_.Id; 'StartTime'=$_.StartTime } }
 // get-process explorer | Select-Object -Property Id, StartTime
 
@@ -410,50 +269,3 @@ function getH264NALs(bufs: { buf: LargeBuffer, path: string }[], sps: SPS|undefi
     }
     return nals;
 }
-
-
-/*
-wrapAsync(async () => {
-    let sps: SPS|undefined = undefined;
-    let pps: PPS|undefined = undefined;
-    let timescale = 5;
-    let frameTimeInTimescale = 1;
-    let width = 800;
-    let height = 600;
-    for(let i = 0; i < 3; i++) {
-        let files = range(i * 10, i * 10 + 10).map(i => `./dist/output${i}.nal`);
-        let NALs = getH264NALs(
-            files.map(path => ({
-                path,
-                buf: ConvertAnnexBToAVCC(LargeBuffer.FromFile(path))
-            })),
-            sps,
-            pps
-        );
-        //console.log(`Got ${NALs.length} NALS`);
-        let outputName = `./dist/output${i}.mp4`;
-        let obj: {sps: SPS, pps: PPS} = await createVideo3(outputName, {
-            timescale,
-            frameTimeInTimescale,
-            width,
-            height,
-            baseMediaDecodeTimeInTimescale: i * 10 * frameTimeInTimescale
-        }, NALs, sps, pps);
-        sps = obj.sps;
-        pps = obj.pps;
-
-        //testReadFile(outputName);
-    }
-});
-//*/
-
-/*
-for(let type of ["exit", "SIGINT", "SIGUSR1", "SIGUSR2", "uncaughtException", "cleanup"]) {
-    process.on(type, () => {
-        writeFileSync(`./dist/${type}`, "test");
-    });
-}
-
-
-setInterval(() => {}, 1000);
-*/
