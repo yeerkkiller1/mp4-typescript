@@ -2825,14 +2825,6 @@ node-libs-browser@^2.0.0:
     util "^0.10.3"
     vm-browserify "0.0.4"
 
-"node-powershell@git+https://github.com/yeerkkiller1/node-powershell.git":
-  version "3.3.1"
-  uid "2cd24ccda844cff3ab65d73fce5de3c832cc3107"
-  resolved "git+https://github.com/yeerkkiller1/node-powershell.git#2cd24ccda844cff3ab65d73fce5de3c832cc3107"
-  dependencies:
-    bluebird "^3.5.1"
-    chalk "^2.1.0"
-
 "node-powershell@https://github.com/yeerkkiller1/node-powershell":
   version "3.3.1"
   resolved "https://github.com/yeerkkiller1/node-powershell#2cd24ccda844cff3ab65d73fce5de3c832cc3107"
@@ -4414,6 +4406,10 @@ webpack-dev-server@^2.9.4:
     supports-color "^5.1.0"
     webpack-dev-middleware "1.12.2"
     yargs "6.6.0"
+
+webpack-node-externals@^1.7.2:
+  version "1.7.2"
+  resolved "https://registry.yarnpkg.com/webpack-node-externals/-/webpack-node-externals-1.7.2.tgz#6e1ee79ac67c070402ba700ef033a9b8d52ac4e3"
 
 webpack-sources@^1.0.1, webpack-sources@^1.1.0:
   version "1.1.0"

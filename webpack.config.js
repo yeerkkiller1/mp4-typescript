@@ -2,6 +2,7 @@ var fs = require("fs");
 var webpack = require("webpack");
 var Visualizer = require("webpack-visualizer-plugin");
 var path = require("path");
+var nodeExternals = require("webpack-node-externals");
 
 module.exports = env => {
     return [getConfig(env)];
@@ -50,6 +51,7 @@ function getConfig (env) {
 
     if (node) {
         obj["target"] = "node";
+        obj["externals"] = [nodeExternals()];
     }
 
     return obj;
