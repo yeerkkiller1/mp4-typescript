@@ -3027,9 +3027,9 @@ p-finally@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/p-finally/-/p-finally-1.0.0.tgz#3fbcfb15b899a44123b34b6dcc18b724336a2cae"
 
-p-info@^0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/p-info/-/p-info-0.1.2.tgz#9a63e22d01840d36db9df887e8e5b55e3ab1bf16"
+p-info@^0.1.4:
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/p-info/-/p-info-0.1.4.tgz#6988df5c61f6f768d958a6d77e111ccec64e02ed"
   dependencies:
     "@types/node-powershell" "^3.1.0"
     node-powershell "https://github.com/yeerkkiller1/node-powershell"
@@ -3037,9 +3037,9 @@ p-info@^0.1.2:
     table-parser "^1.0.1"
     upgrade "^1.1.0"
 
-p-info@^0.1.4:
-  version "0.1.4"
-  resolved "https://registry.yarnpkg.com/p-info/-/p-info-0.1.4.tgz#6988df5c61f6f768d958a6d77e111ccec64e02ed"
+p-info@^0.1.7:
+  version "0.1.7"
+  resolved "https://registry.yarnpkg.com/p-info/-/p-info-0.1.7.tgz#51d01e8602709c66bdf29130ef570bf4cb5f7a56"
   dependencies:
     "@types/node-powershell" "^3.1.0"
     node-powershell "https://github.com/yeerkkiller1/node-powershell"
@@ -3199,6 +3199,10 @@ pbkdf2@^3.0.3:
 pchannel@^0.3.4:
   version "0.3.4"
   resolved "https://registry.yarnpkg.com/pchannel/-/pchannel-0.3.4.tgz#70ed287668496dac74ec4ec2e3525281d7b6e78b"
+
+pchannel@^0.4.5:
+  version "0.4.5"
+  resolved "https://registry.yarnpkg.com/pchannel/-/pchannel-0.4.5.tgz#19b79992c824b438e0c02641891980045e932340"
 
 performance-now@^2.1.0:
   version "2.1.0"
