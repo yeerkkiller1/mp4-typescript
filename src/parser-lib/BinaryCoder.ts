@@ -91,7 +91,7 @@ function evaluateChooseLoop(
     return results;
 }
 
-function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo: T): _SerialObjectOutput<T> {
+function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo: T, ignoreExtraBits = false): _SerialObjectOutput<T> {
     let isRoot = true;
 
     let debugPath: string[] = [];
@@ -154,7 +154,9 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
 
         if(isEndSelf) {
             if(pPos.v * 8 < endBits) {
-                console.warn(debugError(`Did not read all box bits. Read ${(pPos.v - startPos) * 8 + bitOffset} bits, should have read ${endBits - startPos * 8} bits`).message);
+                if(!ignoreExtraBits) {
+                    console.warn(debugError(`Did not read all box bits. Read ${(pPos.v - startPos) * 8 + bitOffset} bits, should have read ${endBits - startPos * 8} bits`).message);
+                }
                 pPos.v = ~~(endBits / 8);
                 bitOffset = endBits % 8;
             }
@@ -802,8 +804,8 @@ function _writeIntermediate<T extends _SerialObjectOutput>(intermediate: T): Lar
 }
 
 
-export function parseObject<T extends SerialObject>(buffer: LargeBuffer, template: T): TemplateToObject<T> {
-    return _getFinalOutput(_parseBytes(buffer, template));
+export function parseObject<T extends SerialObject>(buffer: LargeBuffer, template: T, ignoreExtraBits = false): TemplateToObject<T> {
+    return _getFinalOutput(_parseBytes(buffer, template, ignoreExtraBits));
 }
 export function writeObject<T extends SerialObject>(template: T, object: TemplateToObject<T>): LargeBuffer {
     return _writeIntermediate(_createIntermediateObject(template, object));

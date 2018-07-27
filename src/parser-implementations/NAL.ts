@@ -107,6 +107,26 @@ export function NALLength(sizeByteLength = 4): SerialObjectPrimitiveLength<{}> {
     };
 }
 
+function emulationPreventionParse(rawBytes: number[]): number[] {
+    let finalBytes: number[] = [];
+    for(let i = 0; i < rawBytes.length; i++) {
+        // If we read 0x000003, skip the 3
+        if(i > 2 && rawBytes[i] === 3 && rawBytes[i - 1] === 0 && rawBytes[i - 2] === 0) {
+            //console.log(`EmulationPrevention did something at byte ${i}`);
+            let nextByte = rawBytes[i + 1];
+            if(nextByte !== 0 && nextByte !== 1 && nextByte !== 2 && nextByte !== 3 && nextByte !== undefined) {
+                throw new Error(`EmulationPreventation byte with no purpose. It was used to escape: ${nextByte}`);
+            }
+            continue;
+        }
+        finalBytes.push(rawBytes[i]);
+    }
+
+    // TODO: We also need to parse some end sequences. Something about cabac_zero_word, and trailing cabac_zero_words and stuff like that...
+
+    return finalBytes;
+}
+
 // A NAL start code is 0x000001 (which we don't use, we use length prefixed non start code data). But... this means
 //  the raw data might have 0x000001s in it. So, the spec deals with this by saying that in any 0x000003 sequence is detected
 //  the 0x03 is discarded (non recursively). So we can read data that becomes 0x000001. Unfortunately... we also need to escape
@@ -123,24 +143,7 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
                 rawBytes.push(rawBuffer.readUInt8(i));
             }
             
-            let finalBytes: number[] = [];
-            for(let i = 0; i < totalLength; i++) {
-                // If we read 0x000003, skip the 3
-                if(i > 2 && rawBytes[i] === 3 && rawBytes[i - 1] === 0 && rawBytes[i - 2] === 0) {
-                    //console.log(`EmulationPrevention did something at byte ${i}`);
-                    let nextByte = rawBytes[i + 1];
-                    if(nextByte != 0 && nextByte != 1 && nextByte != 2 && nextByte != 3) {
-                        throw new Error(`EmulationPreventation byte with no purpose. It was used to escape: ${nextByte}`);
-                    }
-                    continue;
-                }
-                finalBytes.push(rawBytes[i]);
-            }
-
-            // TODO: We also need to parse some end sequences. Something about cabac_zero_word, and trailing cabac_zero_words and stuff like that...
-
-            
-            //console.log(`Emulation from ${rawBytes.length} to ${finalBytes.length}`);
+            let finalBytes = emulationPreventionParse(rawBytes);
 
             pPos.v += totalLength;
 
@@ -1166,38 +1169,6 @@ export function NALList(sizeByteLength: number, sps: TemplateToObject<typeof NAL
     // return { NALs: ArrayInfinite(NALCreate(sizeByteLength, sps, pps)) };
 };
 
-export function ParseNalHeaderByte(b: number) {
-    let context: ReadContext = {
-        bitOffset: 0,
-        debugKey: "",
-        end: 1,
-        endBits: 8,
-        pPos: { v: 0 },
-        buffer: new LargeBuffer([Buffer.from([b])]),
-    };
-    let output = bitMapping({
-        forbidden_zero_bit: 1,
-        nal_ref_idc: 2,
-        nal_unit_type: 5,
-    }).read(context);
-
-    if(output.forbidden_zero_bit !== 0) {
-        throw new Error(`Nal header byte is not a nal header byte. ${b}`);
-    }
-
-    if(output.nal_unit_type === 7) {
-        return "sps";
-    } else if(output.nal_unit_type === 8) {
-        return "pps";
-    } else if(output.nal_unit_type === 6) {
-        return "sei";
-    } else if(output.nal_unit_type === 1 || output.nal_unit_type === 5) {
-        return "slice";
-    }
-
-    return "unknown";
-}
-
 export type NALRawTemplate = ReturnType<typeof NALCreateRaw>;
 export type NALRawType = TemplateToObject<NALRawTemplate>;
 export function NALCreateRaw(sizeByteLength: number) {
@@ -1320,4 +1291,187 @@ export function NALListRaw(sizeByteLength: number) {
     // return { NALs: ArrayInfinite(NALCreate(sizeByteLength, sps, pps)) };
 };
 
-//*/
+export function NALCreateRawNoSizeHeader(lengthBytes: number) {
+    // TODO: Make it so the contents of this aren't copy and pasted 3 times.
+
+    return ChooseInfer()({
+        //data: ({NALLength}) => RawData(NALLength.size - 4)
+        bitHeader0: bitMapping({
+            forbidden_zero_bit: 1,
+            nal_ref_idc: 2,
+            nal_unit_type: 5,
+        }),
+    })({
+        forbidden_zero_bit_check: ({bitHeader0}) => {
+            if(bitHeader0.forbidden_zero_bit !== 0) {
+                throw new Error(`forbidden_zero_bit is not equal to 0. The data is probably corrupt.`);
+            }
+            return {};
+        },
+        extensionFlag: ({bitHeader0}) => (
+            bitHeader0.nal_unit_type === 14
+            || bitHeader0.nal_unit_type === 20
+            || bitHeader0.nal_unit_type === 21
+            ? PeekPrimitive(UInt8)
+            : VoidParse
+        )
+    })({
+        extension: ({extensionFlag, bitHeader0}) => {
+            if(extensionFlag === undefined) {
+                return {
+                    nalUnitHeaderBytes: CodeOnlyValue(1)
+                };
+            }
+
+            if(extensionFlag & 0x80) {
+                if(bitHeader0.nal_unit_type === 21) {
+                    // nal_unit_header_3davc_extension
+                    // nalUnitHeaderBytes = 3
+
+                    return {
+                        kind: CodeOnlyValue("3davc"),
+                        nalUnitHeaderBytes: CodeOnlyValue(3),
+                        data: bitMapping({
+                            extensionFlagBit: 1,
+                            view_idx: 8,
+                            depth_flag: 1,
+                            non_idr_flag: 1,
+                            temporal_id: 3,
+                            anchor_pic_flag: 1,
+                            inter_view_flag: 1,
+                        }),
+                    };
+                } else {
+                    // nal_unit_header_svc_extension
+                    // nalUnitHeaderBytes = 4
+
+                    return {
+                        kind: CodeOnlyValue("svc"),
+                        nalUnitHeaderBytes: CodeOnlyValue(4),
+                        data: bitMapping({
+                            extensionFlagBit: 1,
+                            idr_flag: 1,
+                            priority_id: 6,
+                            no_inter_layer_pred_flag: 1,
+                            dependency_id: 3,
+                            quality_id: 4,
+                            temporal_id: 3,
+                            use_ref_base_pic_flag: 1,
+                            discardable_flag: 1,
+                            output_flag: 1,
+                            reserved_three_2bits: 2,
+                        }),
+                    };
+                }
+            } else {
+                // nal_unit_header_mvc_extension
+                // nalUnitHeaderBytes = 4
+
+                return {
+                    kind: CodeOnlyValue("mvc"),
+                    nalUnitHeaderBytes: CodeOnlyValue(4),
+                    data: bitMapping({
+                        extensionFlagBit: 1,
+                        non_idr_flag: 1,
+                        priority_id: 6,
+                        view_id: 10,
+                        temporal_id: 3,
+                        anchor_pic_flag: 1,
+                        inter_view_flag: 1,
+                        reserved_one_bit: 1,
+                    }),
+                };
+            }
+        },
+    })({
+        nalObject: ({bitHeader0, extension}) => {
+            let payloadLength = lengthBytes - extension.nalUnitHeaderBytes;
+            
+            if(bitHeader0.nal_unit_type === 7) {
+                return {type: CodeOnlyValue("sps" as "sps"), nal: RawData(payloadLength)};
+            } else if(bitHeader0.nal_unit_type === 8) {
+                return {type: CodeOnlyValue("pps" as "pps"), nal: RawData(payloadLength)};
+            } else if(bitHeader0.nal_unit_type === 6) {
+                return {type: CodeOnlyValue("sei" as "sei"), nal: RawData(payloadLength)};
+            } else if(bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
+                return {type: CodeOnlyValue("slice" as "slice"), nal: RawData(payloadLength)};
+            }
+
+            return {type: CodeOnlyValue("unknown" as "unknown"), nal: RawData(payloadLength)};
+        }
+    })
+    ();
+}
+
+
+export function ParseNalHeaderByte(b: number) {
+    let context: ReadContext = {
+        bitOffset: 0,
+        debugKey: "",
+        end: 1,
+        endBits: 8,
+        pPos: { v: 0 },
+        buffer: new LargeBuffer([Buffer.from([b])]),
+    };
+    let output = bitMapping({
+        forbidden_zero_bit: 1,
+        nal_ref_idc: 2,
+        nal_unit_type: 5,
+    }).read(context);
+
+    if(output.forbidden_zero_bit !== 0) {
+        throw new Error(`Nal header byte is not a nal header byte. ${b}`);
+    }
+
+    if(output.nal_unit_type === 7) {
+        return "sps";
+    } else if(output.nal_unit_type === 8) {
+        return "pps";
+    } else if(output.nal_unit_type === 6) {
+        return "sei";
+    } else if(output.nal_unit_type === 1 || output.nal_unit_type === 5) {
+        return "slice";
+    }
+
+    return "unknown";
+}
+
+
+
+export function ParseNalInfo(rawNal: Buffer): {
+    type: Exclude<NALRawType["nalObject"]["type"], "slice">
+} | {
+    type: "slice",
+    sliceType: SliceTypeStr
+} {
+    let nal = parseObject(new LargeBuffer([rawNal]), NALCreateRawNoSizeHeader(rawNal.length), true);
+    if(nal.nalObject.type !== "slice") {
+        return {
+            type: nal.nalObject.type
+        };
+    }
+    let data = nal.nalObject.nal;
+
+    /* Actually, emulation prevent will only matter if there are are 24? 0 bits in row.
+            first_mb_in_slice may have a lot, but probably won't, and slice_type will only have 3?
+    // Hmm... emulation prevention... Let's just take the first few bytes, which have the data we need.
+    let someData = data.slice(0, 20);
+    let rawBytes: number[] = [];
+    let len = someData.getLength();
+    for(let i = 0; i < len; i++) {
+        rawBytes.push(someData.readUInt8(i));
+    }
+    let realData = emulationPreventionParse(rawBytes);
+    let realBuffer = new Buffer(realData);
+    */
+
+    let obj = parseObject(data, {
+        first_mb_in_slice: UExpGolomb,
+        slice_type: UExpGolomb,
+    }, true);
+    
+    return {
+        type: "slice" as "slice",
+        sliceType: getSliceType(obj.slice_type)
+    };
+}

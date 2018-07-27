@@ -42,9 +42,11 @@ function main(args: string[]) {
 
             let buf = ConvertAnnexBToAVCC(LargeBuffer.FromFile(path));
             let nals = parseObject(buf, NALList(4, undefined, undefined)).NALs;
+            let rawNals = parseObject(buf, NALListRaw(4)).NALs;
 
             console.log(`Found ${nals.length} NALs`);
-            for(let nal of nals) {
+            for(let i = 0; i < nals.length; i++) {
+                let nal = nals[i];
                 let type = nal.nalObject.type;
                 if(nal.nalObject.type === "slice") {
                     let header = nal.nalObject.nal.slice_header;
@@ -52,6 +54,9 @@ function main(args: string[]) {
                 } else {
                     console.log(`${type}`);
                 }
+
+                //let nalBuffer = writeObject(NALCreateRaw(4), rawNals[i]);
+                //console.log(ParseNalInfo(nalBuffer.DEBUG_getBuffer().slice(4)));
             }
 
             break;
@@ -59,6 +64,15 @@ function main(args: string[]) {
     }
 }
 
+/** rawNal is a NAL with no start code, or length prefix. */
+export function ParseNalInfo(rawNal: Buffer): {
+    type: "sps"|"pps"|"sei"|"unknown"
+} | {
+    type: "slice",
+    sliceType: "P"|"B"|"I"|"SP"|"SI"
+} {
+    return NAL.ParseNalInfo(rawNal);
+}
 
 /** The header byte is the first byte after the start code. */
 export function ParseNalHeaderByte(headerByte: number): "sps"|"pps"|"sei"|"slice"|"unknown" {
