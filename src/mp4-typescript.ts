@@ -24,6 +24,41 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
+if(process.argv.length >= 2 && process.argv[0].replace(/\\/g, "/").endsWith("/node") && process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")) {
+    main(process.argv.slice(2));
+}
+
+function main(args: string[]) {
+    if(args.length <= 1) {
+        console.error(`Format: ["nal", filePath]`);
+        process.exit();
+    }
+
+    let verb = args[0];
+    switch(verb) {
+        default: throw new Error(`Unsupported verb ${verb}`);
+        case "nal": {
+            let path = args[1];
+
+            let buf = ConvertAnnexBToAVCC(LargeBuffer.FromFile(path));
+            let nals = parseObject(buf, NALList(4, undefined, undefined)).NALs;
+
+            console.log(`Found ${nals.length} NALs`);
+            for(let nal of nals) {
+                let type = nal.nalObject.type;
+                if(nal.nalObject.type === "slice") {
+                    let header = nal.nalObject.nal.slice_header;
+                    console.log(`${type} ${header.sliceTypeStr}, order lsb: ${header.pic_order_cnt_lsb}`);
+                } else {
+                    console.log(`${type}`);
+                }
+            }
+
+            break;
+        }
+    }
+}
+
 
 /** The header byte is the first byte after the start code. */
 export function ParseNalHeaderByte(headerByte: number): "sps"|"pps"|"sei"|"slice"|"unknown" {
