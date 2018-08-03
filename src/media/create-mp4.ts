@@ -1,4 +1,4 @@
-import { NALType, SPS, PPS, NALList, NALListRaw, NALRawType, EmulationPreventionWrapper, NAL_SPS } from "../parser-implementations/NAL";
+import { NALType, SPS, PPS, NALList, NALListRaw, NALRawType, EmulationPreventionWrapper, NAL_SPS, NALCreateNoSizeHeader } from "../parser-implementations/NAL";
 import { TemplateToObject, SerialObject } from "../parser-lib/SerialTypes";
 import { RootBox, FtypBox, MdatBox, MoofBox, StypBox, sample_flags, MoovBox, SidxBox } from "../parser-implementations/BoxObjects";
 import { LargeBuffer } from "../parser-lib/LargeBuffer";
@@ -27,13 +27,18 @@ export async function createVideo3 (
         addMoov: boolean;
         // nalObject.type === "slice"
         frames: {
-            nal: NALRawType;
+            nal: Buffer;
             frameDurationInTimescale: number;
         }[],
         // nalObject.type === "sps"
-        sps: NALRawType,
+        sps: Buffer,
         // nalObject.type === "pps"
-        pps: NALRawType
+        pps: Buffer,
+
+        forcedContainerInfo: {
+            profile_idc: number;
+            level_idc: number;
+        }|undefined
     },
 ): Promise<void> {
     let timescale = videoInfo.timescale;
@@ -41,15 +46,21 @@ export async function createVideo3 (
     let height = videoInfo.height;
     let baseMediaDecodeTimeInTimescale = videoInfo.baseMediaDecodeTimeInTimescale;
 
-    let { frames, sps, pps } = videoInfo;
+    let { frames, sps, pps, forcedContainerInfo } = videoInfo;
 
     let profile_idc!: number;
     let level_idc!: number;
 
-    {
-        let spsInfo = parseObject(sps.nalObject.nal, {obj: EmulationPreventionWrapper(sps.nalObject.nal.getLength(), NAL_SPS)}).obj;
-        profile_idc = spsInfo.profile_idc;
-        level_idc = spsInfo.level_idc;
+    if(forcedContainerInfo) {
+        profile_idc = forcedContainerInfo.profile_idc;
+        level_idc = forcedContainerInfo.level_idc;
+    } else {
+        let spsInfo = parseObject(new LargeBuffer([sps]), NALCreateNoSizeHeader(sps.length, undefined, undefined)).nalObject;
+        if(spsInfo.type !== "sps") {
+            throw new Error(`Passed sps buffer is not an sps. It was ${spsInfo.type}`);
+        }
+        profile_idc = spsInfo.nal.profile_idc;
+        level_idc = spsInfo.nal.level_idc;
     }
 
     if(!sps) {
@@ -59,25 +70,19 @@ export async function createVideo3 (
         throw new Error("pps required");
     }
    
-    let codec = `avc1.${profile_idc.toString(16)}00${level_idc.toString(16)}`;
+    //let codec = `avc1.${profile_idc.toString(16)}00${level_idc.toString(16)}`;
 
     //let frames = NALs.filter(x => x.nalObject.type === "slice");
     let frameInfos = frames.map((input, i) => {
-        let obj = input.nal.nalObject;
-        if(obj.type !== "slice") throw new Error("impossible");
-        
-        // Hmm... have to call write to write the nal header stuff.
-        let buffer = writeObject(NALListRaw(4), { NALs: [input.nal] });
-
         return {
-            buffer: buffer,
+            buffer: input.nal,
             composition_offset: 0,
             frameDurationInTimescale: input.frameDurationInTimescale
         };
     });
 
     let samples: SampleInfo[] = frameInfos.map(x => ({
-        sample_size: x.buffer.getLength(),
+        sample_size: x.buffer.length,
         sample_composition_time_offset: x.composition_offset,
     }));
 
@@ -124,8 +129,8 @@ export async function createVideo3 (
             AVCProfileIndication: profile_idc,
             profile_compatibility: 0,
             AVCLevelIndication: level_idc,
-            sps: sps.nalObject.nal,
-            pps: pps.nalObject.nal,
+            sps: new LargeBuffer([sps]),
+            pps: new LargeBuffer([pps]),
             defaultSampleDuration: defaultSampleDuration,
         });
         boxes.push(moov);

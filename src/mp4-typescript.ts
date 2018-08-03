@@ -1,7 +1,7 @@
 import { createSimulatedFrame } from "./media/jpeg";
 
 import { range, wrapAsync, randomUID } from "./util/misc";
-import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw, NALLength, NALCreateRaw } from "./parser-implementations/NAL";
+import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw, NALLength, NALCreateRaw, ConvertAnnexBToRawBuffers } from "./parser-implementations/NAL";
 import * as NAL from "./parser-implementations/NAL";
 import { LargeBuffer } from "./parser-lib/LargeBuffer";
 import { parseObject, filterBox, writeObject } from "./parser-lib/BinaryCoder";
@@ -28,31 +28,70 @@ if(process.argv.length >= 2 && process.argv[0].replace(/\\/g, "/").endsWith("/no
     main(process.argv.slice(2));
 }
 
-function main(args: string[]) {
+async function main(args: string[]) {
     if(args.length <= 1) {
-        console.error(`Format: ["nal", filePath]`);
+        console.error(`Format: ["nal", filePath]|["mux", inputNalPath, outputPath]`);
         process.exit();
     }
 
     let verb = args[0];
     switch(verb) {
         default: throw new Error(`Unsupported verb ${verb}`);
+        case "mux": {
+            let inputNalPath = args[1];
+            let outputPath = args[2];
+
+            let buf = ConvertAnnexBToRawBuffers(LargeBuffer.FromFile(inputNalPath));
+
+            let sps = buf.filter(x => ParseNalHeaderByte(x.readUInt8(0)) === "sps")[0].getCombinedBuffer();
+            let pps = buf.filter(x => ParseNalHeaderByte(x.readUInt8(0)) === "pps")[0].getCombinedBuffer();
+            let frames = buf.filter(x => ParseNalHeaderByte(x.readUInt8(0)) === "slice");
+
+            let output = await MuxVideo({
+                sps,
+                pps,
+                frames: frames.map(frame => ({
+                    nal: frame.getCombinedBuffer(),
+                    frameDurationInSeconds: 1
+                })),
+                baseMediaDecodeTimeInSeconds: 0,
+                width: 1920,
+                height: 1080
+            });
+
+            writeFileSync(outputPath, output);
+
+            break;
+        }
         case "nal": {
             let path = args[1];
 
             let buf = ConvertAnnexBToAVCC(LargeBuffer.FromFile(path));
+
+            for(let b of buf.getInternalBufferList()) {
+                console.log(b.length);
+                if(b.length === 4) {
+                    console.log(b);
+                }
+            }
+
             let nals = parseObject(buf, NALList(4, undefined, undefined)).NALs;
             let rawNals = parseObject(buf, NALListRaw(4)).NALs;
 
             console.log(`Found ${nals.length} NALs`);
             for(let i = 0; i < nals.length; i++) {
+                let nalBuffer = writeObject(NALCreateRaw(4), rawNals[i])
+
                 let nal = nals[i];
                 let type = nal.nalObject.type;
+                if(type === "pps") {
+                    console.log(nal, nalBuffer);
+                }
                 if(nal.nalObject.type === "slice") {
                     let header = nal.nalObject.nal.slice_header;
-                    console.log(`${type} ${header.sliceTypeStr}, order lsb: ${header.pic_order_cnt_lsb}`);
+                    console.log(`${type} (size ${nalBuffer.getLength() - 4}) ${header.sliceTypeStr}, order lsb: ${header.pic_order_cnt_lsb}`);
                 } else {
-                    console.log(`${type}`);
+                    console.log(`${type} (size ${nalBuffer.getLength() - 4})`);
                 }
 
                 //let nalBuffer = writeObject(NALCreateRaw(4), rawNals[i]);
@@ -145,6 +184,7 @@ function readFilePromise(path: string) {
 }
 
 
+/*
 export async function CreateVideo(params: {
     jpegPattern: string;
     baseMediaDecodeTimeInSeconds: number;
@@ -194,6 +234,7 @@ export async function CreateVideo(params: {
         pps: NALs.filter(x => x.nalObject.type === "pps")[0]
     });
 }
+*/
 
 /** 'mux', but with no audio, so I don't really know what this is. */
 export async function MuxVideo(params: {
@@ -201,35 +242,21 @@ export async function MuxVideo(params: {
     sps: Buffer;
     pps: Buffer;
     frames: {
-        buf: Buffer;
+        nal: Buffer;
         frameDurationInSeconds: number;
     }[];
     baseMediaDecodeTimeInSeconds: number;
     // These are important, and if they aren't correct bad things will happen.
     width: number;
     height: number;
-}): Promise<Buffer> {
-
-    let { sps, pps, frames, ...passThroughParams } = params;
-
-    function p(buf: Buffer) {
-        let prefixedBuffer = new LargeBuffer([NALLength(4).write({ curBitSize: 0, value: -1, getSizeAfter: () => buf.length }), buf]);
-        return parseObject(prefixedBuffer, NALCreateRaw(4));
+    // This is usually read from the NALs, but if this object is passed we don't parse the NALs and
+    //  will use this information instead.
+    forcedContainerInfo?: {
+        profile_idc: number;
+        level_idc: number;
     }
-    let spsNal = p(sps);
-    let ppsNal = p(pps);
-    
-    return await InternalCreateVideo({
-        ...passThroughParams,
-        frames: frames.map(x => {
-            return {
-                nal: p(x.buf),
-                frameDurationInSeconds: x.frameDurationInSeconds
-            };
-        }),
-        sps: spsNal,
-        pps: ppsNal,
-    });
+}): Promise<Buffer> {
+    return await InternalCreateVideo(params);
 }
 
 // time gst-launch-1.0 -vv -e v4l2src device=/dev/video0 ! capsfilter caps="image/jpeg,width=1920,height=1080,framerate=30/1" ! jpegdec ! omxh264enc target-bitrate=15000000 control-rate=variable periodicty-idr=10 ! video/x-h264, profile=high ! tcpclientsink port=3000 host=192.168.0.202
@@ -247,11 +274,15 @@ async function InternalCreateVideo(params: {
     width: number;
     height: number;
     frames: {
-        nal: NALRawType;
+        nal: Buffer;
         frameDurationInSeconds: number;
     }[];
-    sps: NALRawType;
-    pps: NALRawType;
+    sps: Buffer;
+    pps: Buffer;
+    forcedContainerInfo?: {
+        profile_idc: number;
+        level_idc: number;
+    }
 }): Promise<Buffer> {
 
     let folderPath = await CreateTempFolderPath();
@@ -277,7 +308,8 @@ async function InternalCreateVideo(params: {
                 }
             }),
             sps: sps,
-            pps: pps
+            pps: pps,
+            forcedContainerInfo: params.forcedContainerInfo
         });
     });
 

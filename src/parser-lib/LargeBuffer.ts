@@ -311,8 +311,11 @@ export class LargeBuffer {
         return buf;
     }
 
+    public getCombinedBuffer(): Buffer {
+        return Buffer.concat(this.buffers);
+    }
     public DEBUG_getBuffer(): Buffer {
-        return this.getSmallBuffer(0, this.getLength());
+        return Buffer.concat(this.buffers);
     }
 
     public getLength() {

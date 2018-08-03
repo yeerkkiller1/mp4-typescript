@@ -156,6 +156,8 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
             if(pPos.v * 8 < endBits) {
                 if(!ignoreExtraBits) {
                     console.warn(debugError(`Did not read all box bits. Read ${(pPos.v - startPos) * 8 + bitOffset} bits, should have read ${endBits - startPos * 8} bits`).message);
+                    //console.log(object);
+                    //console.log(rootObjectInfo);
                 }
                 pPos.v = ~~(endBits / 8);
                 bitOffset = endBits % 8;

@@ -25,13 +25,35 @@ typedef enum {
 
 /** Make a AVCC format buffer, from annex b. */
 export function ConvertAnnexBToAVCC(buf: LargeBuffer): LargeBuffer {
+    let nakedNals = ConvertAnnexBToRawBuffers(buf);
+
+    let nalsAndLengths: LargeBuffer[] = [];
+    for(let nakedNal of nakedNals) {
+        let size = nakedNal.getLength();
+
+        let b1 = ~~(size / Math.pow(2, 24));
+        size -= b1 * Math.pow(2, 24);
+        let b2 = ~~(size / Math.pow(2, 16));
+        size -= b2 * Math.pow(2, 16);
+        let b3 = ~~(size / Math.pow(2, 8));
+        size -= b3 * Math.pow(2, 8);
+        let b4 = size;
+
+        nalsAndLengths.push(new LargeBuffer([Buffer.from([b1, b2, b3, b4])]));
+        nalsAndLengths.push(nakedNal);
+    }
+
+    return new LargeBuffer(nalsAndLengths);
+}
+
+export function ConvertAnnexBToRawBuffers(buf: LargeBuffer): LargeBuffer[] {
     let annexB3BytesPositions: {pos: number, size: number}[] = [];
+    
 
     let len = buf.getLength();
     let zeroCount = 0;
 
     
-
     // Wait! Variable length start codes!? Dammit, we need to handle this...
     for(let i = 0; i < len; i++) {
         let byte = buf.readUInt8(i);
@@ -60,28 +82,7 @@ export function ConvertAnnexBToAVCC(buf: LargeBuffer): LargeBuffer {
         nakedNals.push(buf.slice(start, end));
     }
 
-    let index = 0;
-    let pos = 0;
-    let nalsAndLengths: LargeBuffer[] = [];
-    for(let nakedNal of nakedNals) {
-        let size = nakedNal.getLength();
-        //console.log({size, pos, index});
-        pos += size + 4;
-        index++;
-
-        let b1 = ~~(size / Math.pow(2, 24));
-        size -= b1 * Math.pow(2, 24);
-        let b2 = ~~(size / Math.pow(2, 16));
-        size -= b2 * Math.pow(2, 16);
-        let b3 = ~~(size / Math.pow(2, 8));
-        size -= b3 * Math.pow(2, 8);
-        let b4 = size;
-
-        nalsAndLengths.push(new LargeBuffer([Buffer.from([b1, b2, b3, b4])]));
-        nalsAndLengths.push(nakedNal);
-    }
-
-    return new LargeBuffer(nalsAndLengths);
+    return nakedNals;
 }
 
 // There are NALs without start codes, as mentioned in: https://msdn.microsoft.com/en-us/library/windows/desktop/dd757808(v=vs.85).aspx,
@@ -1115,6 +1116,122 @@ export function NALCreate(sizeByteLength: number, sps: TemplateToObject<typeof N
     })({
         nalObject: ({NALLength, bitHeader0, extension}) => {
             let payloadLength = NALLength.size - extension.nalUnitHeaderBytes - sizeByteLength;
+            
+            if(bitHeader0.nal_unit_type === 7) {
+                return {type: CodeOnlyValue("sps" as "sps"), nal: EmulationPreventionWrapper(payloadLength, NAL_SPS)};
+            } else if(bitHeader0.nal_unit_type === 8) {
+                return {type: CodeOnlyValue("pps" as "pps"), nal: EmulationPreventionWrapper(payloadLength, NAL_PPS)};
+            } else if(bitHeader0.nal_unit_type === 6) {
+                return {type: CodeOnlyValue("sei" as "sei"), nal: EmulationPreventionWrapper(payloadLength, NAL_SEI)};
+            } else if(bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
+                if(sps === undefined) {
+                    throw new Error(`sps is required when we encounter nal_unit_type === ${bitHeader0.nal_unit_type}`);
+                }
+                if(pps === undefined) {
+                    throw new Error(`pps is required when we encounter nal_unit_type === ${bitHeader0.nal_unit_type}`);
+                }
+                return {type: CodeOnlyValue("slice" as "slice"), nal: EmulationPreventionWrapper(payloadLength, NAL_SLICE_LAYER_WITHOUT_PARTITIONING(bitHeader0.nal_unit_type, sps, pps, bitHeader0.nal_ref_idc))};
+            } else {
+                return {type: CodeOnlyValue("unknown" as "unknown"), nal: EmulationPreventionWrapper(payloadLength, { all: ArrayInfinite(UInt8) })};
+            }
+        }
+    })
+    ();
+}
+
+export function NALCreateNoSizeHeader(byteSize: number, sps: TemplateToObject<typeof NAL_SPS>|undefined, pps: TemplateToObject<typeof NAL_PPS>|undefined) {
+    return ChooseInfer()({
+        //data: ({NALLength}) => RawData(NALLength.size - 4)
+        bitHeader0: bitMapping({
+            forbidden_zero_bit: 1,
+            nal_ref_idc: 2,
+            nal_unit_type: 5,
+        }),
+    })({
+        forbidden_zero_bit_check: ({bitHeader0}) => {
+            if(bitHeader0.forbidden_zero_bit !== 0) {
+                throw new Error(`forbidden_zero_bit is not equal to 0. The data is probably corrupt.`);
+            }
+            return {};
+        },
+        extensionFlag: ({bitHeader0}) => (
+            bitHeader0.nal_unit_type === 14
+            || bitHeader0.nal_unit_type === 20
+            || bitHeader0.nal_unit_type === 21
+            ? PeekPrimitive(UInt8)
+            : VoidParse
+        )
+    })({
+        extension: ({extensionFlag, bitHeader0}) => {
+            if(extensionFlag === undefined) {
+                return {
+                    nalUnitHeaderBytes: CodeOnlyValue(1)
+                };
+            }
+
+            if(extensionFlag & 0x80) {
+                if(bitHeader0.nal_unit_type === 21) {
+                    // nal_unit_header_3davc_extension
+                    // nalUnitHeaderBytes = 3
+
+                    return {
+                        kind: CodeOnlyValue("3davc"),
+                        nalUnitHeaderBytes: CodeOnlyValue(3),
+                        data: bitMapping({
+                            extensionFlagBit: 1,
+                            view_idx: 8,
+                            depth_flag: 1,
+                            non_idr_flag: 1,
+                            temporal_id: 3,
+                            anchor_pic_flag: 1,
+                            inter_view_flag: 1,
+                        }),
+                    };
+                } else {
+                    // nal_unit_header_svc_extension
+                    // nalUnitHeaderBytes = 4
+
+                    return {
+                        kind: CodeOnlyValue("svc"),
+                        nalUnitHeaderBytes: CodeOnlyValue(4),
+                        data: bitMapping({
+                            extensionFlagBit: 1,
+                            idr_flag: 1,
+                            priority_id: 6,
+                            no_inter_layer_pred_flag: 1,
+                            dependency_id: 3,
+                            quality_id: 4,
+                            temporal_id: 3,
+                            use_ref_base_pic_flag: 1,
+                            discardable_flag: 1,
+                            output_flag: 1,
+                            reserved_three_2bits: 2,
+                        }),
+                    };
+                }
+            } else {
+                // nal_unit_header_mvc_extension
+                // nalUnitHeaderBytes = 4
+
+                return {
+                    kind: CodeOnlyValue("mvc"),
+                    nalUnitHeaderBytes: CodeOnlyValue(4),
+                    data: bitMapping({
+                        extensionFlagBit: 1,
+                        non_idr_flag: 1,
+                        priority_id: 6,
+                        view_id: 10,
+                        temporal_id: 3,
+                        anchor_pic_flag: 1,
+                        inter_view_flag: 1,
+                        reserved_one_bit: 1,
+                    }),
+                };
+            }
+        },
+    })({
+        nalObject: ({bitHeader0, extension}) => {
+            let payloadLength = byteSize - extension.nalUnitHeaderBytes;
             
             if(bitHeader0.nal_unit_type === 7) {
                 return {type: CodeOnlyValue("sps" as "sps"), nal: EmulationPreventionWrapper(payloadLength, NAL_SPS)};
