@@ -7,9 +7,9 @@ import { range } from "../util/misc";
 import { byteToBits } from "../parser-lib/Primitives";
 import { debugString } from "../util/UTF8";
 
-export function testReadFile(path: string) {
+export function testReadFile(path: string, outputPath?: string) {
     let buf = LargeBuffer.FromFile(path);
-    testRead(path, buf);
+    testRead(path, buf, outputPath);
 }
 function prettyPrint(obj: any): string {
     let uniqueId = 0;
@@ -39,11 +39,11 @@ function prettyPrint(obj: any): string {
     }
     return output;
 }
-function testRead(path: string, buf: LargeBuffer) {
+function testRead(path: string, buf: LargeBuffer, outputPath = `${basename(path)}.json`) {
     let finalOutput = parseObject(buf, RootBox);
 
-    console.log(`Write to ${basename(path)}.json`);
-    writeFileSync(basename(path) + ".json", prettyPrint(finalOutput));
+    console.log(`Write to ${outputPath}`);
+    writeFileSync(outputPath, prettyPrint(finalOutput));
     
     //writeFileSync(basename(path) + ".json", prettyPrint(finalOutput.boxes.filter(x => x.type === "mdat")));
 

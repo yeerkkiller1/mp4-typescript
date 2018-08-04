@@ -1,9 +1,9 @@
 import { Box, CodeOnlyValue, BoxAnyType } from "../parser-lib/BinaryCoder";
-import { UInt32String, UInt32, UInt64, NumberShifted, Int32, Int16, UInt16, UInt8, bitMapping, CString, LanguageParse, RawData, Int64, BitPrimitiveN, IntBitN, BitPrimitive, DebugString, DebugStringRemaining, UInt24 } from "../parser-lib/Primitives";
+import { UInt32String, UInt32, UInt64, NumberShifted, Int32, Int16, UInt16, UInt8, bitMapping, CString, LanguageParse, RawData, Int64, BitPrimitiveN, IntBitN, BitPrimitive, DebugString, DebugStringRemaining, UInt24, RemainingDataRaw } from "../parser-lib/Primitives";
 import { ArrayInfinite, ChooseInfer, BoxLookup, ErasedKey } from "../parser-lib/SerialTypes";
 import { repeat, range } from "../util/misc";
 import { throwValue, assertNumber } from "../util/type";
-import { EmulationPreventionWrapper, NAL_SPS, NALCreate, NALCreateRaw } from "./NAL";
+import { EmulationPreventionWrapper, NAL_SPS, NALCreate, NALCreateRaw, InvariantCheck, NALLength } from "./NAL";
 
 export function FullBox<T extends string>(type: T) {
     return {
@@ -260,8 +260,40 @@ export const AvcCBox = ChooseInfer()({
     reserved0: BitPrimitiveN(6),
     lengthSizeMinusOne: IntBitN(2),
 })({
-
     reserved1: BitPrimitiveN(3),
+    numOfSequenceParameterSets: IntBitN(5),
+})({
+    spses: ({numOfSequenceParameterSets}) => repeat(
+        {
+            // NALLength has a LengthObjectSymbol, which should signal to the parser how far RemainingDataRaw
+            //  should parse.
+            length: NALLength(2),
+            bytes: RemainingDataRaw
+        },
+        numOfSequenceParameterSets
+    ),
+    numOfPictureParameterSets: IntBitN(8),
+})({
+    ppses: ({numOfPictureParameterSets}) => repeat(
+        {
+            // NALLength has a LengthObjectSymbol, which should signal to the parser how far RemainingDataRaw
+            //  should parse.
+            length: NALLength(2),
+            bytes: RemainingDataRaw
+        },
+        numOfPictureParameterSets
+    ),
+})({
+    /*
+    checkSPS: InvariantCheck(({numOfSequenceParameterSets}) => numOfSequenceParameterSets === 1),
+    checkPPS: InvariantCheck(({numOfPictureParameterSets}) => {
+        console.log({numOfPictureParameterSets});
+        return numOfPictureParameterSets === 1;
+    }),
+    */
+})
+/*
+({
     numOfSequenceParameterSets: IntBitN(5),
 })({
     sequenceParameterSets: ({numOfSequenceParameterSets, lengthSizeMinusOne}) => {
@@ -277,7 +309,9 @@ export const AvcCBox = ChooseInfer()({
     pictureParameterSets: ({numOfPictureParameterSets}) => {
         return repeat({pps: NALCreateRaw(2)}, numOfPictureParameterSets);
     }
-})({
+})
+*/
+({
     remainingBytes: ArrayInfinite(UInt8)
 })
 ();

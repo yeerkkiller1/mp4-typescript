@@ -1,4 +1,4 @@
-import { NALType, SPS, PPS, NALList, NALListRaw, NALRawType, EmulationPreventionWrapper, NAL_SPS, NALCreateNoSizeHeader } from "../parser-implementations/NAL";
+import { NALType, SPS, PPS, NALList, NALListRaw, NALRawType, EmulationPreventionWrapper, NAL_SPS, NALCreateNoSizeHeader, NALLength } from "../parser-implementations/NAL";
 import { TemplateToObject, SerialObject } from "../parser-lib/SerialTypes";
 import { RootBox, FtypBox, MdatBox, MoofBox, StypBox, sample_flags, MoovBox, SidxBox } from "../parser-implementations/BoxObjects";
 import { LargeBuffer } from "../parser-lib/LargeBuffer";
@@ -27,6 +27,7 @@ export async function createVideo3 (
         addMoov: boolean;
         // nalObject.type === "slice"
         frames: {
+            // Raw NAL, no start code or length prefix
             nal: Buffer;
             frameDurationInTimescale: number;
         }[],
@@ -74,15 +75,29 @@ export async function createVideo3 (
 
     //let frames = NALs.filter(x => x.nalObject.type === "slice");
     let frameInfos = frames.map((input, i) => {
+        // AVCC encoding, aka, length prefix
+        //  I think 4 bytes length prefix is just part of the standard for AVCC in mp4 web files? Oh well...
+
+        let len = NALLength(4).write({
+            value: input.nal.length,
+            curBitSize: 0,
+            getSizeAfter() { return input.nal.length }
+        });
+
+        let buffer = new LargeBuffer([
+            len,
+            input.nal
+        ]);
+        
         return {
-            buffer: input.nal,
+            buffer,
             composition_offset: 0,
             frameDurationInTimescale: input.frameDurationInTimescale
         };
     });
 
     let samples: SampleInfo[] = frameInfos.map(x => ({
-        sample_size: x.buffer.length,
+        sample_size: x.buffer.getLength(),
         sample_composition_time_offset: x.composition_offset,
     }));
 
@@ -100,6 +115,8 @@ export async function createVideo3 (
         }
     }
 
+    console.log("sps", sps.length);
+    console.log("pps", pps.length);
 
     let boxes: TemplateToObject<typeof RootBox>["boxes"][0][] = [];
 
@@ -254,12 +271,16 @@ function createMoov(
         defaultSampleDuration: number;
     }
 ): O<typeof MoovBox> {
+    /*
     if("time_scale" in d.sps) {
         //d.sps.time_scale = d.timescale * 2;
     }
     if("num_units_in_tick" in d.sps) {
         //d.sps.num_units_in_tick = d.frameTimeInTimescale;
     }
+    */
+
+    console.log("pps", d.pps.getLength());
     
     return {
         header: {
@@ -549,52 +570,16 @@ function createMoov(
                                                                     1
                                                                 ],
                                                                 "numOfSequenceParameterSets": 1,
-                                                                "sequenceParameterSets": [
-                                                                    {
-                                                                        "sps": {
-                                                                            "NALLength": {
-                                                                                "size": 29
-                                                                            },
-                                                                            "bitHeader0": {
-                                                                                "forbidden_zero_bit": 0,
-                                                                                "nal_ref_idc": 3,
-                                                                                "nal_unit_type": 7
-                                                                            },
-                                                                            "forbidden_zero_bit_check": {},
-                                                                            "extension": {
-                                                                                "nalUnitHeaderBytes": 1
-                                                                            },
-                                                                            "nalObject": {
-                                                                                "type": "sps",
-                                                                                "nal": d.sps
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                ],
-                                                                "test": 5,
+                                                                spses: [{
+                                                                    length: d.sps.getLength(),
+                                                                    bytes: d.sps
+                                                                }],
+
                                                                 "numOfPictureParameterSets": 1,
-                                                                "pictureParameterSets": [
-                                                                    {
-                                                                        "pps": {
-                                                                            "NALLength": {
-                                                                                "size": 7
-                                                                            },
-                                                                            "bitHeader0": {
-                                                                                "forbidden_zero_bit": 0,
-                                                                                "nal_ref_idc": 3,
-                                                                                "nal_unit_type": 8
-                                                                            },
-                                                                            "forbidden_zero_bit_check": {},
-                                                                            "extension": {
-                                                                                "nalUnitHeaderBytes": 1
-                                                                            },
-                                                                            "nalObject": {
-                                                                                "type": "pps",
-                                                                                "nal": d.pps
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                ],
+                                                                ppses: [{
+                                                                    length: d.pps.getLength(),
+                                                                    bytes: d.pps
+                                                                }],
                                                                 "remainingBytes": []
                                                             },
                                                             {
@@ -810,7 +795,7 @@ function createMoof(
                                 type: "tfdt"
                             },
                             type: "tfdt",
-                            version: 1,
+                            version: 0,
                             flags: 0,
                             values: {
                                 baseMediaDecodeTime: d.baseMediaDecodeTimeInTimescale

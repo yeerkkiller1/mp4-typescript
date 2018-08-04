@@ -24,13 +24,17 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
-if(process.argv.length >= 2 && process.argv[0].replace(/\\/g, "/").endsWith("/node") && process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")) {
+console.log(process.argv);
+if(process.argv.length >= 2 &&
+    (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
+    process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")
+) {
     main(process.argv.slice(2));
 }
 
 async function main(args: string[]) {
     if(args.length <= 1) {
-        console.error(`Format: ["nal", filePath]|["mux", inputNalPath, outputPath]`);
+        console.error(`Format: ["nal", filePath] | ["mux", inputNalPath, outputPath] | ["decodeMP4", inputMP4Path, outputMP4InfoPath]`);
         process.exit();
     }
 
@@ -99,6 +103,17 @@ async function main(args: string[]) {
             }
 
             break;
+        }
+        case "decodeMP4": {
+            let inputMP4Path = args[1];
+            let outputMP4InfoPath = args[2];
+
+            testReadFile(inputMP4Path, outputMP4InfoPath);
+
+            break;
+        }
+        case "compare": {
+            testWrite(LargeBuffer.FromFile(args[1]), LargeBuffer.FromFile(args[2]));
         }
     }
 }

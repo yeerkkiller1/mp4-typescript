@@ -293,7 +293,7 @@ const IsMoreDataLeft: SerialObjectPrimitive<boolean> = {
     }
 };
 
-function InvariantCheck<T>(trueVariant: (context: T) => boolean): (context: T) => SerialObject {
+export function InvariantCheck<T>(trueVariant: (context: T) => boolean): (context: T) => SerialObject {
     return function(context: T): SerialObject {
         if(!trueVariant(context)) {
             throw new Error(`Invariant failed. ${trueVariant.toString()}`);
