@@ -795,7 +795,7 @@ function createMoof(
                                 type: "tfdt"
                             },
                             type: "tfdt",
-                            version: 0,
+                            version: 1,
                             flags: 0,
                             values: {
                                 baseMediaDecodeTime: d.baseMediaDecodeTimeInTimescale
