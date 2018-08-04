@@ -1,6 +1,6 @@
 import { NALType, SPS, PPS, NALList, NALListRaw, NALRawType, EmulationPreventionWrapper, NAL_SPS, NALCreateNoSizeHeader, NALLength } from "../parser-implementations/NAL";
 import { TemplateToObject, SerialObject } from "../parser-lib/SerialTypes";
-import { RootBox, FtypBox, MdatBox, MoofBox, StypBox, sample_flags, MoovBox, SidxBox } from "../parser-implementations/BoxObjects";
+import { RootBox, FtypBox, MdatBox, MoofBox, StypBox, sample_flags, MoovBox, SidxBox, Opt } from "../parser-implementations/BoxObjects";
 import { LargeBuffer } from "../parser-lib/LargeBuffer";
 import { writeObject, parseObject } from "../parser-lib/BinaryCoder";
 import { keyBy, sort } from "../util/misc";
@@ -99,6 +99,8 @@ export async function createVideo3 (
     let samples: SampleInfo[] = frameInfos.map(x => ({
         sample_size: x.buffer.getLength(),
         sample_composition_time_offset: x.composition_offset,
+        sample_duration: undefined,
+        sample_flags: undefined,
     }));
 
     let variableFrameRate = false;
@@ -700,11 +702,11 @@ function createSidx(
     };
 }
 
-type SampleInfo = {
-    sample_duration?: number;
-    sample_size?: number;
-    sample_flags?: SampleFlags;
-    sample_composition_time_offset?: number;
+export type SampleInfo = {
+    sample_duration: number|undefined;
+    sample_size: number|undefined;
+    sample_flags: SampleFlags|undefined;
+    sample_composition_time_offset: number|undefined;
 }
 function createMoof(
     d: {
@@ -785,10 +787,10 @@ function createMoof(
                                 base_data_offset_present: 0
                             },
                             track_ID: 1,
-                            values: Object.assign({},
-                                d.defaultSampleDurationInTimescale === undefined ? {} : { default_sample_duration: d.defaultSampleDurationInTimescale },
-                                d.defaultSampleFlags === undefined ? {} : { default_sample_flags: d.defaultSampleFlags }
-                            )
+                            values: ({
+                                default_sample_duration: d.defaultSampleDurationInTimescale ? d.defaultSampleDurationInTimescale : undefined,
+                                default_sample_flags: d.defaultSampleFlags ? d.defaultSampleFlags : undefined,
+                            })
                         },
                         {
                             header: {
@@ -819,15 +821,10 @@ function createMoof(
                                 data_offset_present: 1
                             },
                             sample_count: d.samples.length,
-                            values: Object.assign(
-                                { data_offset: moofSize + 8 },
-                                // Union assignment has bugs, so... this is sort of weird
-                                d.forcedFirstSampleFlags === undefined ? {
-                                    first_sample_flags: undefined
-                                } : {
-                                    first_sample_flags: d.forcedFirstSampleFlags
-                                }
-                            ),
+                            values: ({
+                                data_offset: moofSize + 8,
+                                first_sample_flags : d.forcedFirstSampleFlags ? d.forcedFirstSampleFlags : undefined
+                            }),
                             sample_values: d.samples
                         }
                     ]

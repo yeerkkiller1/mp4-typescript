@@ -5,7 +5,7 @@ import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw
 import * as NAL from "./parser-implementations/NAL";
 import { LargeBuffer } from "./parser-lib/LargeBuffer";
 import { parseObject, filterBox, writeObject } from "./parser-lib/BinaryCoder";
-import { createVideo3 } from "./media/create-mp4";
+import { createVideo3, SampleInfo } from "./media/create-mp4";
 import { writeFileSync, readFile, readFileSync } from "fs";
 import { CreateTempFolderPath } from "temp-folder";
 import { SetTimeoutAsync } from "pchannel";
@@ -15,6 +15,8 @@ import * as net from "net";
 
 import * as Jimp from "jimp";
 import { RootBox } from "./parser-implementations/BoxObjects";
+import { ArrayInfinite } from "./parser-lib/SerialTypes";
+import { RemainingDataRaw } from "./parser-lib/Primitives";
 let jimpAny = Jimp as any;
 
 //testReadFile("C:/scratch/test.mp4");
@@ -54,13 +56,13 @@ async function main(args: string[]) {
             let output = await MuxVideo({
                 sps,
                 pps,
-                frames: frames.map(frame => ({
+                frames: frames.map((frame, i) => ({
                     nal: frame.getCombinedBuffer(),
-                    frameDurationInSeconds: 1
+                    frameDurationInSeconds: i == 0 ? 0.4 : 0
                 })),
                 baseMediaDecodeTimeInSeconds: 0,
-                width: 1920,
-                height: 1080
+                width: 640,
+                height: 480
             });
 
             writeFileSync(outputPath, output);
@@ -72,13 +74,6 @@ async function main(args: string[]) {
 
             let buf = ConvertAnnexBToAVCC(LargeBuffer.FromFile(path));
 
-            for(let b of buf.getInternalBufferList()) {
-                console.log(b.length);
-                if(b.length === 4) {
-                    console.log(b);
-                }
-            }
-
             let nals = parseObject(buf, NALList(4, undefined, undefined)).NALs;
             let rawNals = parseObject(buf, NALListRaw(4)).NALs;
 
@@ -88,9 +83,6 @@ async function main(args: string[]) {
 
                 let nal = nals[i];
                 let type = nal.nalObject.type;
-                if(type === "pps") {
-                    console.log(nal, nalBuffer);
-                }
                 if(nal.nalObject.type === "slice") {
                     let header = nal.nalObject.nal.slice_header;
                     console.log(`${type} (size ${nalBuffer.getLength() - 4}) ${header.sliceTypeStr}, order lsb: ${header.pic_order_cnt_lsb}`);
@@ -114,6 +106,36 @@ async function main(args: string[]) {
         }
         case "compare": {
             testWrite(LargeBuffer.FromFile(args[1]), LargeBuffer.FromFile(args[2]));
+            break;
+        }
+        case "extractNALs": {
+            let inputMP4Path = args[1];
+            let outputNALFile = args[2];
+
+            let object = parseObject(LargeBuffer.FromFile(inputMP4Path), RootBox);
+
+            //let samples = filterBox(object)("moof")("traf")("trun")().sample_values;
+
+            let avcC = filterBox(object)("moov")("trak")("mdia")("minf")("stbl")("stsd")("avc1")("avcC")();
+
+            let sps = avcC.spses[0].bytes;
+            let pps = avcC.ppses[0].bytes;
+            
+            let data = filterBox(object)("mdat")();
+            let nalList = {
+                list: ArrayInfinite({
+                    len: NALLength(4),
+                    bytes: RemainingDataRaw
+                })
+            };
+            let nals = parseObject(data.bytes, nalList).list.map(x => x.bytes);
+
+            // Now, convert combine nals, sps and pps in annex b format.
+
+            let startCode = new Buffer([0, 0, 0, 1]);
+
+            let output = new LargeBuffer([sps, pps].concat(nals).map(x => new LargeBuffer([startCode, x])));
+            output.WriteToFile(outputNALFile);
         }
     }
 }

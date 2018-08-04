@@ -650,6 +650,11 @@ export const TfhdBox = ChooseInfer()({
 })
 ();
 
+type OptT<T> = { [key in keyof T]?: T[key] };
+export function Opt<T>(obj: T): OptT<T> {
+    return obj;
+}
+
 export const TrunBox = ChooseInfer()({
     ... Box("trun"),
     version: UInt8,
@@ -667,18 +672,28 @@ export const TrunBox = ChooseInfer()({
     sample_count: UInt32
 })({
     values: ({flags}) => (
-        Object.assign({},
-            flags.data_offset_present ? {data_offset: UInt32} : {},
-            flags.first_sample_flags_present ? {first_sample_flags: sample_flags} : {},
-        )
+        ({
+            data_offset: flags.data_offset_present ? UInt32 : undefined,
+            first_sample_flags: flags.first_sample_flags_present ? sample_flags : undefined,
+        })
     ),
 })({
     sample_values: ({sample_count, flags, values}) => (
-        range(0, sample_count).map(index => Object.assign({},
+        range(0, sample_count).map(index => (
+            // Object.assign doesn't have enough overloads, so we can only use 4 arguments.
+            //{},
+            ({
+                sample_duration: flags.sample_duration_present ? UInt32 : CodeOnlyValue(undefined),
+                sample_size: flags.sample_size_present ? UInt32 : CodeOnlyValue(undefined),
+                sample_flags: values.first_sample_flags && index === 0 ? CodeOnlyValue(undefined) : flags.sample_flags_present ? sample_flags : CodeOnlyValue(undefined),
+                sample_composition_time_offset: flags.sample_composition_time_offsets_present ? UInt32 : CodeOnlyValue(undefined),
+            })
+            /*
             flags.sample_duration_present ? {sample_duration: UInt32} : {},
             flags.sample_size_present ? {sample_size: UInt32} : {},
             values.first_sample_flags && index === 0 ? {} : flags.sample_flags_present ? {sample_flags: sample_flags} : {},
             flags.sample_composition_time_offsets_present ? {sample_composition_time_offset: UInt32} : {},
+            */
         )
     ))
 })

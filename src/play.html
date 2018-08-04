@@ -10,16 +10,22 @@
             
             // I am not sure if the profile, compatibility and level even matter (the part after avc1.). Seems to work
             //  either way, which it should, because that info is in both the mp4 box, and the sps NAL unit.
-            buf = push.addSourceBuffer('video/mp4; codecs="avc1.420029"');
-            //buf = push.addSourceBuffer(`video/mp4; codecs="avc1.64001E"`);
+            //buf = push.addSourceBuffer('video/mp4; codecs="avc1.420029"');
+            buf = push.addSourceBuffer(`video/mp4; codecs="avc1.64001E"`);
 
             //let startTime = 38417943360 / 90000;
             //await addVideo("../youtube.mp4");
 
-            let startTime = 100;
+            let startTime = 8625302690152 / 90000;
+            startTime = 0;
+            await addVideo("../dist/segcopy.mp4");
+            //await addVideo("../dist/testout.mp4");
+
+            //await addVideo("../dist/output0NEW.mp4");
+
             //let startTime = 0;
             //await addVideo("../dist/output0.mp4");
-            await addVideo("../dist/output0NEW.mp4");
+            //await addVideo("../dist/output0NEW.mp4");
             //await addVideo("../dist/output1.mp4");
 
             //todonext
