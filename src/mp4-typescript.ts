@@ -330,7 +330,7 @@ async function InternalCreateVideo(params: {
     let {baseMediaDecodeTimeInSeconds,  width, height, frames, sps, pps } = params;
     
     let output!: Buffer;
-    await profile("createVideo3", async () => {
+    await profile(null, async () => {
         // Each frame has different duration, which could be completely unrelated to any fps, so just make a high and nice number.
         //  OH! New information. The chrome video player cannot handle times in seconds that don't fit in an int (that is, a 32 bit signed integer).
         //      So basically, video.currentTime is time in seconds, and must be able to fit in an int. Our internal times can be larger,
