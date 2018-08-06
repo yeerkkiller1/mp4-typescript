@@ -48,14 +48,43 @@ import { SerialObject,
 
 import { LargeBuffer, MaxUInt32 } from "./LargeBuffer";
 import { isArray, assertNumber } from "../util/type";
-import { mapObjectValues, keyBy, flatten, unique } from "../util/misc";
+import { mapObjectValues, keyBy, flatten, unique, clock } from "../util/misc";
 import { sum } from "../util/math";
 import { textFromUInt32, textToUInt32, writeUInt64BE } from "../util/serialExtension";
 import { WrapWithFunctionName } from "../util/debug";
+import { Range } from "pchannel";
 
 export const BoxAnyType = "any";
 
-type test = SerialObjectChildToOutput<SerialObjectChild>;
+async function profile(name: string|null, code: () => Promise<void>): Promise<void> {
+    let time = +new Date();
+    try {
+        await code();
+    } finally {
+        time = +new Date() - time;
+
+        if(name !== null) {
+            console.log(`${name} took ${time}ms`);
+        }
+    }
+}
+
+let profileDepth = 0;
+function profileSync<T>(name: string|null, code: () => T): T {
+    let curDepth = profileDepth++;
+    let time = clock();
+    try {
+        return code();
+    } finally {
+        profileDepth--;
+        time = clock() - time;
+
+        if(name) {
+            let indent = Range(0, curDepth).map(x => " ").join("");
+            console.log(`${indent}${name} took ${time.toFixed(1)}ms`);
+        }
+    }
+}
 
 
 function cleanup(codeAfter: () => void, code: () => void) {
@@ -627,6 +656,8 @@ export function getAllBufferWriteContextRanges(buffer: Readonly<Buffer>): WriteC
     return val.ranges;
 }
 export function setBufferWriteContext(buffer: LargeBuffer, context: string, range = { start: 0, end: Number.MAX_SAFE_INTEGER }): void {
+    if(true as boolean) return;
+
     let pos = 0;
     for(let buf of buffer.getInternalBufferList()) {
         let obj = buf as any as WriteContextObj;
@@ -649,6 +680,8 @@ export function setBufferWriteContext(buffer: LargeBuffer, context: string, rang
     }
 }
 export function copyBufferWriteContext(oldBuf: LargeBuffer, newBuf: LargeBuffer): void {
+    if(true as boolean) return;
+
     let olds = oldBuf.getInternalBufferList();
     let news = newBuf.getInternalBufferList();
 
@@ -669,6 +702,18 @@ function _writeIntermediate<T extends _SerialObjectOutput>(intermediate: T): Lar
     //  figure out why something is doing bit operations, when I thought I got rid of all bit offsets.
 
     function writeIntermediateObject(output: _SerialObjectOutput): LargeBuffer {
+        /*
+        let type: string|null = null;
+        if(output.header && (output.header as any).value.type) {
+            type = (output.header as any).value.type;
+        }
+        */
+
+        //return profileSync(type && `writeIntermediateObject ${type}`, () => {
+        return writeIntermediateObjectInternal(output);
+        //});
+    }
+    function writeIntermediateObjectInternal(output: _SerialObjectOutput): LargeBuffer {
         let curBitSize = 0;
         let curBuffers: LargeBuffer[] = [];
         function addBuffer(buf: LargeBuffer): void {
@@ -700,18 +745,18 @@ function _writeIntermediate<T extends _SerialObjectOutput>(intermediate: T): Lar
         }
 
         let startBufferIndex = curBuffers.length;
-        for(let key in output) {
-            debugPath.push(key);
-            WrapWithFunctionName(key, () => {
+        //profileSync("writeChildren", () => {
+            for(let key in output) {
+                debugPath.push(key);
                 writeChild(output[key] as any);
-            })();
-            debugPath.pop();
-        }
+                debugPath.pop();
+            }
+        //});
 
         function getSizeAfter(): number {
             didSizeAfterCall = true;
             if(curDelayedBufferIndex === null) return 0;
-
+            
             let sizeAfterBits = sum(curBuffers.slice(curDelayedBufferIndex + 1).map(x => LargeBuffer.GetBitCount(x)));
             if(sizeAfterBits % 8 !== 0) {
                 console.log(`getSizeAfter call has bits that don't bit into byte. There were ${sizeAfterBits} bits.`);
@@ -738,6 +783,10 @@ function _writeIntermediate<T extends _SerialObjectOutput>(intermediate: T): Lar
         return result;
 
         function writePrimitive(primitive: SerialObjectPrimitiveToOutput): void {
+            return writePrimitiveInternal(primitive);
+        }
+
+        function writePrimitiveInternal(primitive: SerialObjectPrimitiveToOutput): void {
             WrapWithFunctionName(primitive[SerialPrimitiveName], () => {
                 // Lot's of functionality needing in parsing can be removing when writing the data. Except of course
                 //  getSizeAfter, which is strange, but very much needed to make creating boxes reasonably feasible.
@@ -871,8 +920,9 @@ export function filterBox<T extends (BoxType<string> | string)>(inputIn?: T): Fi
 /** A string that exists in our code, but doesn't get written back to disk. Useful to adding values to the
  *      object data for intermediate parsing.
  */
-
+export const CodeOnlyValueSymbol = Symbol();
 export const CodeOnlyValue: <T>(type: T) => SerialObjectPrimitive<T> = <T>(value: T) => ({
+    [CodeOnlyValueSymbol]: value,
     [HandlesBitOffsets]: true,
     read({pPos, buffer}) {
         return value;

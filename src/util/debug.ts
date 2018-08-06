@@ -1,4 +1,4 @@
-let ENABLE_FUNCTION_RENAMING = true;
+let ENABLE_FUNCTION_RENAMING = false;
 
 function EscapeIdentifier(name: string) {
     // TODO: Do this right

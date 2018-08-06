@@ -62,7 +62,11 @@ async function main(args: string[]) {
                 })),
                 baseMediaDecodeTimeInSeconds: 0,
                 width: 640,
-                height: 480
+                height: 480,
+                forcedContainerInfo: {
+                    level_idc: 0,
+                    profile_idc: 0
+                }
             });
 
             writeFileSync(outputPath, output);
@@ -325,7 +329,7 @@ async function InternalCreateVideo(params: {
     // These are important, and if they aren't correct bad things will happen.
     let {baseMediaDecodeTimeInSeconds,  width, height, frames, sps, pps } = params;
     
-    let output!: LargeBuffer;
+    let output!: Buffer;
     await profile("createVideo3", async () => {
         // Each frame has different duration, which could be completely unrelated to any fps, so just make a high and nice number.
         //  OH! New information. The chrome video player cannot handle times in seconds that don't fit in an int (that is, a 32 bit signed integer).
@@ -334,7 +338,7 @@ async function InternalCreateVideo(params: {
         //      Aka, the year 2038 problem. So stupid...
         let timescale = 5 * 6 * 30 * 100;
 
-        output = await createVideo3({
+        let buf = await createVideo3({
             timescale,
             width,
             height,
@@ -350,12 +354,14 @@ async function InternalCreateVideo(params: {
             pps: pps,
             forcedContainerInfo: params.forcedContainerInfo
         });
+
+        // Well... if we every want to support > 4GB or 2GB or whatever files, we would need to change this line. Everything else supports
+        //  very large files (maybe not x264, I'm not sure), because we use LargeBuffer everywhere else. However, exporting the LargeBuffer
+        //  types is a lot, and so I am only exporting Buffer for the purpose of keeping the .d.ts file for this clean.
+        output = buf.getCombinedBuffer();
     });
 
-    // Well... if we every want to support > 4GB or 2GB or whatever files, we would need to change this line. Everything else supports
-    //  very large files (maybe not x264, I'm not sure), because we use LargeBuffer everywhere else. However, exporting the LargeBuffer
-    //  types is a lot, and so I am only exporting Buffer for the purpose of keeping the .d.ts file for this clean.
-    return output.getCombinedBuffer();
+    return output;
 }
 
 // get-process explorer | % { @{ 'Id'=$_.Id; 'StartTime'=$_.StartTime } }

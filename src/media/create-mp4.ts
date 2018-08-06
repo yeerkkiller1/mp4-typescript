@@ -6,14 +6,16 @@ import { writeObject, parseObject } from "../parser-lib/BinaryCoder";
 import { keyBy, sort } from "../util/misc";
 import { min, sum } from "../util/math";
 
-async function profile(name: string, code: () => Promise<void>): Promise<void> {
+async function profile(name: string|null, code: () => Promise<void>): Promise<void> {
     let time = +new Date();
     try {
         await code();
     } finally {
         time = +new Date() - time;
 
-        console.log(`${name} took ${time}ms`);
+        if(name !== null) {
+            console.log(`${name} took ${time}ms`);
+        }
     }
 }
 
@@ -72,148 +74,163 @@ export async function createVideo3 (
    
     //let codec = `avc1.${profile_idc.toString(16)}00${level_idc.toString(16)}`;
 
-    //let frames = NALs.filter(x => x.nalObject.type === "slice");
-    let frameInfos = frames.map((input, i) => {
-        // AVCC encoding, aka, length prefix
-        //  I think 4 bytes length prefix is just part of the standard for AVCC in mp4 web files? Oh well...
+    let samples!: SampleInfo[];
+    let frameInfos!: {
+        buffer: LargeBuffer;
+        composition_offset: number;
+        frameDurationInTimescale: number;
+    }[];
+    let defaultSampleDuration!: number;
 
-        let len = NALLength(4).write({
-            value: input.nal.length,
-            curBitSize: 0,
-            getSizeAfter() { return input.nal.length }
+    await profile("createSamples", async () => {
+        frameInfos = frames.map((input, i) => {
+            // AVCC encoding, aka, length prefix
+            //  I think 4 bytes length prefix is just part of the standard for AVCC in mp4 web files? Oh well...
+
+            let len = NALLength(4).write({
+                value: input.nal.length,
+                curBitSize: 0,
+                getSizeAfter() { return input.nal.length }
+            });
+
+            let buffer = new LargeBuffer([
+                len,
+                input.nal
+            ]);
+            
+            return {
+                buffer,
+                composition_offset: 0,
+                frameDurationInTimescale: input.frameDurationInTimescale
+            };
         });
 
-        let buffer = new LargeBuffer([
-            len,
-            input.nal
-        ]);
-        
-        return {
-            buffer,
-            composition_offset: 0,
-            frameDurationInTimescale: input.frameDurationInTimescale
-        };
+        samples = frameInfos.map(x => ({
+            sample_size: x.buffer.getLength(),
+            sample_composition_time_offset: x.composition_offset,
+            sample_duration: undefined,
+            sample_flags: undefined,
+        }));
+
+        let variableFrameRate = false;
+        defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameDurationInTimescale : 0;
+        for(let frameInfo of frameInfos) {
+            if(frameInfo.frameDurationInTimescale !== defaultSampleDuration) {
+                variableFrameRate = true;
+                break;
+            }
+        }
+        if(variableFrameRate) {
+            for(let i = 0; i < samples.length; i++) {
+                samples[i].sample_duration = frameInfos[i].frameDurationInTimescale;
+            }
+        }
     });
-
-    let samples: SampleInfo[] = frameInfos.map(x => ({
-        sample_size: x.buffer.getLength(),
-        sample_composition_time_offset: x.composition_offset,
-        sample_duration: undefined,
-        sample_flags: undefined,
-    }));
-
-    let variableFrameRate = false;
-    let defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameDurationInTimescale : 0;
-    for(let frameInfo of frameInfos) {
-        if(frameInfo.frameDurationInTimescale !== defaultSampleDuration) {
-            variableFrameRate = true;
-            break;
-        }
-    }
-    if(variableFrameRate) {
-        for(let i = 0; i < samples.length; i++) {
-            samples[i].sample_duration = frameInfos[i].frameDurationInTimescale;
-        }
-    }
-
-    console.log("sps", sps.length);
-    console.log("pps", pps.length);
 
     let boxes: TemplateToObject<typeof RootBox>["boxes"][0][] = [];
 
     if(videoInfo.addMoov) {
-        let ftyp: O<typeof FtypBox> = {
+        await profile("add moov", async () => {
+            let ftyp: O<typeof FtypBox> = {
+                header: {
+                    type: "ftyp"
+                },
+                type: "ftyp",
+                major_brand: "iso5",
+                minor_version: 1,
+                compatible_brands: [
+                    "avc1",
+                    "iso5",
+                    "dash"
+                ]
+            };
+            boxes.push(ftyp);
+
+            let moov = createMoov({
+                defaultFlags: nonKeyFrameSampleFlags,
+                timescale: timescale,
+                durationInTimescale: 0,
+                width: width,
+                height: height,
+                AVCProfileIndication: profile_idc,
+                profile_compatibility: 0,
+                AVCLevelIndication: level_idc,
+                sps: new LargeBuffer([sps]),
+                pps: new LargeBuffer([pps]),
+                defaultSampleDuration: defaultSampleDuration,
+            });
+            boxes.push(moov);
+        });
+    }
+    
+    await profile("other boxes", async () => {
+        let moof = createMoof({
+            sequenceNumber: 1,
+            baseMediaDecodeTimeInTimescale: baseMediaDecodeTimeInTimescale,
+            samples,
+            forcedFirstSampleFlags: keyFrameSampleFlags,
+            // Set defaultFlags in moov, not moof
+            //defaultSampleFlags: nonKeyFrameSampleFlags
+        });
+        
+        let mdat: O<typeof MdatBox> = {
             header: {
-                type: "ftyp"
+                size: 0,
+                headerSize: 8,
+                type: "mdat"
             },
-            type: "ftyp",
-            major_brand: "iso5",
-            minor_version: 1,
+            type: "mdat",
+            bytes: new LargeBuffer(frameInfos.map(x => x.buffer))
+        };
+
+        let moofBuf = writeObject(MoofBox, moof);
+        let mdatBuf = writeObject(MdatBox, mdat);
+
+        let sidx = createSidx({
+            moofSize: moofBuf.getLength(),
+            mdatSize: mdatBuf.getLength(),
+            subsegmentDuration: sum(frameInfos.map(x => x.frameDurationInTimescale)),
+            timescale: timescale,
+            startsWithKeyFrame: true
+        });
+
+        let styp: O<typeof StypBox> = {
+            header: {
+                size: 24,
+                type: "styp",
+                headerSize: 8
+            },
+            type: "styp",
+            major_brand: "msdh",
+            minor_version: 0,
             compatible_brands: [
-                "avc1",
-                "iso5",
-                "dash"
+                "msdh",
+                "msix"
             ]
         };
-        boxes.push(ftyp);
 
-
-        let moov = createMoov({
-            defaultFlags: nonKeyFrameSampleFlags,
-            timescale: timescale,
-            durationInTimescale: 0,
-            width: width,
-            height: height,
-            AVCProfileIndication: profile_idc,
-            profile_compatibility: 0,
-            AVCLevelIndication: level_idc,
-            sps: new LargeBuffer([sps]),
-            pps: new LargeBuffer([pps]),
-            defaultSampleDuration: defaultSampleDuration,
-        });
-        boxes.push(moov);
-    }
-    
-    let moof = createMoof({
-        sequenceNumber: 1,
-        baseMediaDecodeTimeInTimescale: baseMediaDecodeTimeInTimescale,
-        samples,
-        forcedFirstSampleFlags: keyFrameSampleFlags,
-        // Set defaultFlags in moov, not moof
-        //defaultSampleFlags: nonKeyFrameSampleFlags
-    });
-    
-    let mdat: O<typeof MdatBox> = {
-        header: {
-            size: 0,
-            headerSize: 8,
-            type: "mdat"
-        },
-        type: "mdat",
-        bytes: new LargeBuffer(frameInfos.map(x => x.buffer))
-    };
-
-    let moofBuf = writeObject(MoofBox, moof);
-    let mdatBuf = writeObject(MdatBox, mdat);
-
-    let sidx = createSidx({
-        moofSize: moofBuf.getLength(),
-        mdatSize: mdatBuf.getLength(),
-        subsegmentDuration: sum(frameInfos.map(x => x.frameDurationInTimescale)),
-        timescale: timescale,
-        startsWithKeyFrame: true
+        boxes.push(styp);
+        boxes.push(sidx);
+        boxes.push(moof);
+        boxes.push(mdat);
     });
 
-    let styp: O<typeof StypBox> = {
-        header: {
-            size: 24,
-            type: "styp",
-            headerSize: 8
-        },
-        type: "styp",
-        major_brand: "msdh",
-        minor_version: 0,
-        compatible_brands: [
-            "msdh",
-            "msix"
-        ]
-    };
-
-    boxes.push(styp);
-    boxes.push(sidx);
-    boxes.push(moof);
-    boxes.push(mdat);
-
+    
     let outputBuffers: {buf: LargeBuffer, type: string}[] = [];
-    for(let box of boxes) {
-        let buf = writeObject(RootBox, { boxes: [box] });
-        outputBuffers.push({
-            buf,
-            type: box.type
-        });
-    }
+    await profile("final write", async () => {
+        for(let box of boxes) {
+            let buf = writeObject(RootBox, { boxes: [box] });
+            outputBuffers.push({
+                buf,
+                type: box.type
+            });
+        }
+    });
 
-    let finalBuffer = new LargeBuffer(outputBuffers.map(x => x.buf));
+    let finalBuffer!: LargeBuffer;
+    await profile("final concat", async () => {
+        finalBuffer = new LargeBuffer(outputBuffers.map(x => x.buf));
+    });
 
     /*
     let totalSize = finalBuffer.getLength();
