@@ -82,7 +82,7 @@ export async function createVideo3 (
     }[];
     let defaultSampleDuration!: number;
 
-    await profile("createSamples", async () => {
+    //await profile("createSamples", async () => {
         frameInfos = frames.map((input, i) => {
             // AVCC encoding, aka, length prefix
             //  I think 4 bytes length prefix is just part of the standard for AVCC in mp4 web files? Oh well...
@@ -125,12 +125,12 @@ export async function createVideo3 (
                 samples[i].sample_duration = frameInfos[i].frameDurationInTimescale;
             }
         }
-    });
+    //});
 
     let boxes: TemplateToObject<typeof RootBox>["boxes"][0][] = [];
 
     if(videoInfo.addMoov) {
-        await profile("add moov", async () => {
+        //await profile("add moov", async () => {
             let ftyp: O<typeof FtypBox> = {
                 header: {
                     type: "ftyp"
@@ -160,10 +160,10 @@ export async function createVideo3 (
                 defaultSampleDuration: defaultSampleDuration,
             });
             boxes.push(moov);
-        });
+        //});
     }
     
-    await profile("other boxes", async () => {
+    //await profile("other boxes", async () => {
         let moof = createMoof({
             sequenceNumber: 1,
             baseMediaDecodeTimeInTimescale: baseMediaDecodeTimeInTimescale,
@@ -213,11 +213,11 @@ export async function createVideo3 (
         boxes.push(sidx);
         boxes.push(moof);
         boxes.push(mdat);
-    });
+    //});
 
     
     let outputBuffers: {buf: LargeBuffer, type: string}[] = [];
-    await profile("final write", async () => {
+    //await profile("final write", async () => {
         for(let box of boxes) {
             let buf = writeObject(RootBox, { boxes: [box] });
             outputBuffers.push({
@@ -225,12 +225,12 @@ export async function createVideo3 (
                 type: box.type
             });
         }
-    });
+    ///});
 
     let finalBuffer!: LargeBuffer;
-    await profile("final concat", async () => {
+    //await profile("final concat", async () => {
         finalBuffer = new LargeBuffer(outputBuffers.map(x => x.buf));
-    });
+    //});
 
     /*
     let totalSize = finalBuffer.getLength();
@@ -297,8 +297,6 @@ function createMoov(
         //d.sps.num_units_in_tick = d.frameTimeInTimescale;
     }
     */
-
-    console.log("pps", d.pps.getLength());
     
     return {
         header: {
