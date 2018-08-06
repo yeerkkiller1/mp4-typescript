@@ -205,14 +205,16 @@ async function createSimulateFrame(time: number, text: string, width: number, he
 }
 
 
-async function profile(name: string, code: () => Promise<void>): Promise<void> {
+async function profile(name: string|null, code: () => Promise<void>): Promise<void> {
     let time = +new Date();
     try {
         await code();
     } finally {
         time = +new Date() - time;
 
-        console.log(`${name} took ${time}ms`);
+        if(name) {
+            console.log(`${name} took ${time}ms`);
+        }
     }
 }
 
