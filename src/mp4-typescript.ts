@@ -58,7 +58,7 @@ async function main(args: string[]) {
                 pps,
                 frames: frames.map((frame, i) => ({
                     nal: frame.getCombinedBuffer(),
-                    frameDurationInSeconds: i == 0 ? 0.4 : 0
+                    frameDurationInSeconds: 1
                 })),
                 baseMediaDecodeTimeInSeconds: 0,
                 width: 640,
@@ -322,17 +322,19 @@ async function InternalCreateVideo(params: {
     }
 }): Promise<Buffer> {
 
-    let folderPath = await CreateTempFolderPath();
-
     // These are important, and if they aren't correct bad things will happen.
     let {baseMediaDecodeTimeInSeconds,  width, height, frames, sps, pps } = params;
     
-    let outputPath = `${folderPath}_${randomUID("mp4")}.mp4`;
+    let output!: LargeBuffer;
     await profile("createVideo3", async () => {
         // Each frame has different duration, which could be completely unrelated to any fps, so just make a high and nice number.
+        //  OH! New information. The chrome video player cannot handle times in seconds that don't fit in an int (that is, a 32 bit signed integer).
+        //      So basically, video.currentTime is time in seconds, and must be able to fit in an int. Our internal times can be larger,
+        //      but after dividing by our timescale the times in seconds must always be under 31 bits.
+        //      Aka, the year 2038 problem. So stupid...
         let timescale = 5 * 6 * 30 * 100;
 
-        await createVideo3(outputPath, {
+        output = await createVideo3({
             timescale,
             width,
             height,
@@ -353,7 +355,7 @@ async function InternalCreateVideo(params: {
     // Well... if we every want to support > 4GB or 2GB or whatever files, we would need to change this line. Everything else supports
     //  very large files (maybe not x264, I'm not sure), because we use LargeBuffer everywhere else. However, exporting the LargeBuffer
     //  types is a lot, and so I am only exporting Buffer for the purpose of keeping the .d.ts file for this clean.
-    return await readFilePromise(outputPath);
+    return output.getCombinedBuffer();
 }
 
 // get-process explorer | % { @{ 'Id'=$_.Id; 'StartTime'=$_.StartTime } }

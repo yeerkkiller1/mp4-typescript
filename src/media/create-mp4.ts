@@ -18,7 +18,6 @@ async function profile(name: string, code: () => Promise<void>): Promise<void> {
 }
 
 export async function createVideo3 (
-    outputFileName: string,
     videoInfo: {
         timescale: number;
         width: number;
@@ -41,7 +40,7 @@ export async function createVideo3 (
             level_idc: number;
         }|undefined
     },
-): Promise<void> {
+): Promise<LargeBuffer> {
     let timescale = videoInfo.timescale;
     let width = videoInfo.width;
     let height = videoInfo.height;
@@ -225,7 +224,7 @@ export async function createVideo3 (
     }
     */
 
-    await finalBuffer.WriteToFile(outputFileName);
+    return finalBuffer;
 }
 
 
