@@ -40,7 +40,7 @@ export async function createVideo3 (
         forcedContainerInfo: {
             profile_idc: number;
             level_idc: number;
-        }|undefined
+        }|undefined;
     },
 ): Promise<LargeBuffer> {
     let timescale = videoInfo.timescale;

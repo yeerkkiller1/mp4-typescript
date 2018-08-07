@@ -11,8 +11,6 @@ import { CreateTempFolderPath } from "temp-folder";
 import { SetTimeoutAsync } from "pchannel";
 import { testReadFile, testWriteFile, testWrite } from "./test/utils";
 
-import * as net from "net";
-
 import * as Jimp from "jimp";
 import { RootBox } from "./parser-implementations/BoxObjects";
 import { ArrayInfinite } from "./parser-lib/SerialTypes";
@@ -297,7 +295,8 @@ export async function MuxVideo(params: {
     forcedContainerInfo?: {
         profile_idc: number;
         level_idc: number;
-    }
+    };
+    timescale?: number;
 }): Promise<Buffer> {
     return await InternalCreateVideo(params);
 }
@@ -325,7 +324,8 @@ async function InternalCreateVideo(params: {
     forcedContainerInfo?: {
         profile_idc: number;
         level_idc: number;
-    }
+    };
+    timescale?: number;
 }): Promise<Buffer> {
 
     // These are important, and if they aren't correct bad things will happen.
@@ -338,7 +338,7 @@ async function InternalCreateVideo(params: {
         //      So basically, video.currentTime is time in seconds, and must be able to fit in an int. Our internal times can be larger,
         //      but after dividing by our timescale the times in seconds must always be under 31 bits.
         //      Aka, the year 2038 problem. So stupid...
-        let timescale = 5 * 6 * 30 * 100;
+        let timescale = params.timescale || 5 * 6 * 30 * 100;
 
         let buf = await createVideo3({
             timescale,
@@ -354,7 +354,7 @@ async function InternalCreateVideo(params: {
             }),
             sps: sps,
             pps: pps,
-            forcedContainerInfo: params.forcedContainerInfo
+            forcedContainerInfo: params.forcedContainerInfo,
         });
 
         // Well... if we every want to support > 4GB or 2GB or whatever files, we would need to change this line. Everything else supports
