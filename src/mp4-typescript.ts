@@ -12,8 +12,8 @@ import { SetTimeoutAsync } from "pchannel";
 import { testReadFile, testWriteFile, testWrite } from "./test/utils";
 
 import * as Jimp from "jimp";
-import { RootBox } from "./parser-implementations/BoxObjects";
-import { ArrayInfinite } from "./parser-lib/SerialTypes";
+import { RootBox, StcoBox } from "./parser-implementations/BoxObjects";
+import { ArrayInfinite, TemplateToObject } from "./parser-lib/SerialTypes";
 import { RemainingDataRaw } from "./parser-lib/Primitives";
 let jimpAny = Jimp as any;
 
@@ -25,7 +25,7 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0NEW.mp4");
 
 console.log(process.argv);
-if(process.argv.length >= 2 &&
+if(process.argv.length > 2 &&
     (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
     process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")
 ) {
@@ -34,7 +34,7 @@ if(process.argv.length >= 2 &&
 
 async function main(args: string[]) {
     if(args.length <= 1) {
-        console.error(`Format: ["nal", filePath] | ["mux", inputNalPath, outputPath] | ["decodeMP4", inputMP4Path, outputMP4InfoPath]`);
+        console.error(`Format: ["nal", filePath] | ["mux", inputNalPath, outputPath] | ["decodeMP4", inputMP4Path, outputMP4InfoPath|undefined]`);
         process.exit();
     }
 
@@ -100,7 +100,7 @@ async function main(args: string[]) {
         }
         case "decodeMP4": {
             let inputMP4Path = args[1];
-            let outputMP4InfoPath = args[2];
+            let outputMP4InfoPath = args[2] || inputMP4Path + ".json";
 
             testReadFile(inputMP4Path, outputMP4InfoPath);
 
@@ -140,6 +140,97 @@ async function main(args: string[]) {
             output.WriteToFile(outputNALFile);
         }
     }
+}
+
+export function getMP4NALIterator(path: string): {
+    timescale: number;
+    nals: {
+        timeInTimescale: number;
+        // Raw nal, no start codes or anything
+        nal: Buffer;
+    }[];
+} {
+    // ctts, sample times
+    // co64
+    // moov.mvhd timescale
+
+    let fileBuffer = LargeBuffer.FromFile(path);
+    let object = parseObject(fileBuffer, RootBox);
+    let { timescale } = filterBox(object)("moov")("mvhd")().times;
+
+    let moov = filterBox(object)("moov")();
+
+    let nalsWithTimes: { nal: Buffer; timeInTimescale: number }[] = [];
+
+    moov.boxes.forEach(box => {
+        if(box.type !== "trak") return;
+        let type = filterBox(box)("mdia")("minf")("stbl")("stsd")().boxes[0].type;
+        if(type !== "avc1") return;
+
+        let stbl = filterBox(box)("mdia")("minf")("stbl");
+
+        let ctts = stbl("ctts")();
+
+        let sampleTimesMapped: number[] = [];
+
+        let time = 0;
+        ctts.samples.forEach(sampleTimeObj => {
+            for(let i = 0; i < sampleTimeObj.sample_count; i++) {
+                sampleTimesMapped.push(time);
+                time += sampleTimeObj.sample_offset;
+            }
+        });
+
+        let sampleOffsets: Omit<TemplateToObject<typeof StcoBox>, "header"|"type">;
+        if(stbl().boxes.some(x => x.type === "stco")) {
+            sampleOffsets = stbl("stco")();
+        } else if(stbl().boxes.some(x => x.type === "co64")) {
+            sampleOffsets = stbl("co64")();
+        } else {
+            throw new Error(`Can't find sample byte offsets.`);
+        }
+
+        let sampleSizes = stbl("stsz")();
+
+        let sampleIndex = 0;
+        let chunkSampleCounts = stbl("stsc")().entries;
+        // The last entry doesn't mean anything, the differences in first_chunk are what matters (which makes you wonder whey there isn't a chunk count instead of index...)
+        for(let i = 0; i < chunkSampleCounts.length; i++) {
+            let samplesPerChunk = chunkSampleCounts[i].samples_per_chunk;
+
+            let curChunkIndex = chunkSampleCounts[i].first_chunk - 1;
+            let nextChunkIndex = i + 1 < chunkSampleCounts.length ? chunkSampleCounts[i + 1].first_chunk - 1 : curChunkIndex + 1;
+            for(let chunkIndex = curChunkIndex; chunkIndex < nextChunkIndex; chunkIndex++) {
+                let fileOffset = sampleOffsets.chunk_offsets[chunkIndex];
+                for(let i = 0; i < samplesPerChunk; i++) {
+                    let sampleSize = sampleSizes.sample_sizes[sampleIndex];
+
+                    let nalBuffer = fileBuffer.slice(fileOffset, fileOffset + sampleSize);
+                    let time = sampleTimesMapped[sampleIndex];
+
+                    // Remove the length prefix (it is avcC format, I guess...).
+                    let nal = nalBuffer.getCombinedBuffer().slice(4);
+
+                    nalsWithTimes.push({ nal, timeInTimescale: time });
+ 
+                    fileOffset += sampleSize;
+                    sampleIndex++;
+                }
+            }
+        }
+        if(sampleIndex !== sampleTimesMapped.length) {
+            throw new Error(`There are ${sampleTimesMapped.length} sample times, but we read ${sampleIndex} times.`);
+        }
+    });
+
+    nalsWithTimes.sort((a, b) => a.timeInTimescale - b.timeInTimescale);
+
+    console.log(`Nals ${nalsWithTimes.length}`);
+
+    return {
+        timescale,
+        nals: nalsWithTimes
+    };
 }
 
 /** rawNal is a NAL with no start code, or length prefix. */

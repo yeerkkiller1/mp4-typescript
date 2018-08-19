@@ -246,6 +246,11 @@ export const Mp4vBox = {
     notImportant: ArrayInfinite(UInt8),
 };
 
+export const Mp4aBox = {
+    ... Box("mp4a"),
+    data: RemainingDataRaw
+}
+
 
 
 // https://github.com/videolan/vlc/blob/master/modules/packetizer/h264_nal.c
@@ -361,6 +366,7 @@ export const StsdBox = ChooseInfer()({
     boxes: ({entry_count}) => BoxLookup(
         Mp4vBox,
         Avc1Box,
+        Mp4aBox,
         entry_count
     ),
 })
@@ -416,6 +422,14 @@ export const StcoBox = ChooseInfer()({
 })
 ();
 
+export const Co64Box = ChooseInfer()({
+    ... FullBox("co64"),
+    entry_count: UInt32,
+})({
+    chunk_offsets: ({entry_count}) => repeat(UInt64, entry_count)
+})
+();
+
 export const StssBox = ChooseInfer()({
     ... FullBox("stss"),
     entry_count: UInt32
@@ -441,17 +455,24 @@ export const StblBox = {
         StscBox,
         StszBox,
         StcoBox,
+        Co64Box,
         StssBox,
         CttsBox
     ),
 };
+
+export const SmhdBox = {
+    ...Box("smhd"),
+    data: RemainingDataRaw
+}
 
 export const MinfBox = {
     ... Box("minf"),
     boxes: BoxLookup(
         VmhdBox,
         DinfBox,
-        StblBox
+        StblBox,
+        SmhdBox
     ),
 };
 

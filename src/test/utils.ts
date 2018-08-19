@@ -26,6 +26,7 @@ function prettyPrint(obj: any): string {
         return value;
     }
     let output = JSON.stringify(obj, cleanOutput, "    ");
+    /*
     for(let id in largeBufferId) {
         let text = `"unique${id}"`;
         let buffer = largeBufferId[id];
@@ -37,6 +38,7 @@ function prettyPrint(obj: any): string {
         }
         output = output.replace(text, `new LargeBuffer([Buffer.from([${nums.join(",")}])])`);
     }
+    */
     return output;
 }
 function testRead(path: string, buf: LargeBuffer, outputPath = `${basename(path)}.json`) {

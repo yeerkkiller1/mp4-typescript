@@ -37,7 +37,7 @@ export class LargeBuffer {
         let buffers: Buffer[] = [];
 
         while(readPos < stats.size) {
-            let currentReadSize = Math.min(MaxUInt32, stats.size - readPos);
+            let currentReadSize = Math.min(Math.floor(MaxUInt32 / 2), stats.size - readPos);
             let buf = Buffer.alloc(currentReadSize);
             fs.readSync(fsHandler, buf, 0, currentReadSize, readPos);
             readPos += currentReadSize;
@@ -312,6 +312,9 @@ export class LargeBuffer {
     }
 
     public getCombinedBuffer(): Buffer {
+        if(this.buffers.length === 1) {
+            return this.buffers[0];
+        }
         return Buffer.concat(this.buffers);
     }
     public DEBUG_getBuffer(): Buffer {
