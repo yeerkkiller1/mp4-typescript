@@ -381,7 +381,7 @@ export const UExpGolomb: SerialObjectPrimitive<number> = {
         }
         let bits: Bit[] = [];
 
-        let magnitude = ~~(Math.log2(context.value + 1));
+        let magnitude = Math.floor(Math.log2(context.value + 1));
 
         for(let i = 0; i < magnitude; i++) {
             bits.push(0);

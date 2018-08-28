@@ -188,12 +188,12 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
                     //console.log(object);
                     //console.log(rootObjectInfo);
                 }
-                pPos.v = ~~(endBits / 8);
+                pPos.v = Math.floor(endBits / 8);
                 bitOffset = endBits % 8;
             }
             if(pPos.v * 8 > endBits) {
                 console.warn(debugError(`Read too far. Read ${(pPos.v - startPos) * 8 + bitOffset}, should have read ${endBits - startPos * 8} bits`).message);
-                pPos.v = ~~(endBits / 8);
+                pPos.v = Math.floor(endBits / 8);
                 bitOffset = endBits % 8;
             }
         }
@@ -246,7 +246,7 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
                     buffer,
                     pPos,
                     bitOffset,
-                    end: ~~(endBits / 8),
+                    end: Math.floor(endBits / 8),
                     endBits: endBits,
                     debugKey: output.key
                 };
@@ -315,7 +315,7 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
 
                     let time = +new Date();
                     let index = 0;
-                    while(pPos.v < ~~(endBits / 8)) {
+                    while(pPos.v < Math.floor(endBits / 8)) {
                         parseChildBase(element, { key: index as any as string, parent: arr as any });
                         index++;
                     }
@@ -378,7 +378,7 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
                     count = count !== undefined ? count : Number.MAX_SAFE_INTEGER;
 
                     let index = 0;
-                    while(pPos.v < ~~(endBits / 8) && count --> 0) {
+                    while(pPos.v < Math.floor(endBits / 8) && count --> 0) {
                         debugPath.push(index.toString());
 
                         let type: string;
@@ -391,7 +391,7 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
                                 pPos: { ... pPos },
                                 // Eh... I don't know if this will work.
                                 bitOffset,
-                                end: ~~(endBits / 8),
+                                end: Math.floor(endBits / 8),
                                 endBits: endBits,
                                 debugKey: output.key,
                             };

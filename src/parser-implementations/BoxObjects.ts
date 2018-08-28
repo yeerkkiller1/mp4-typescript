@@ -434,7 +434,7 @@ export const StssBox = ChooseInfer()({
     ... FullBox("stss"),
     entry_count: UInt32
 })({
-    samples: ({entry_count}) => repeat(UInt32, entry_count)
+    sample_indexes: ({entry_count}) => repeat(UInt32, entry_count)
 })
 ();
 
@@ -443,6 +443,18 @@ export const CttsBox = ChooseInfer()({
     entry_count: UInt32
 })({
     samples: ({entry_count}) => repeat({sample_count: UInt32, sample_offset: UInt32}, entry_count)
+})
+();
+
+export const SgpdBox = ChooseInfer()({
+    ... FullBox("sgpd"),
+    data: RemainingDataRaw
+})
+();
+
+export const SbgpBox = ChooseInfer()({
+    ... FullBox("sbgp"),
+    data: RemainingDataRaw
 })
 ();
 
@@ -457,7 +469,9 @@ export const StblBox = {
         StcoBox,
         Co64Box,
         StssBox,
-        CttsBox
+        CttsBox,
+        SgpdBox,
+        SbgpBox
     ),
 };
 

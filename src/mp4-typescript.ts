@@ -1,7 +1,7 @@
 import { createSimulatedFrame } from "./media/jpeg";
 
-import { range, wrapAsync, randomUID } from "./util/misc";
-import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw, NALLength, NALCreateRaw, ConvertAnnexBToRawBuffers } from "./parser-implementations/NAL";
+import { range, wrapAsync, randomUID, keyBy, mapObjectValues } from "./util/misc";
+import { SPS, PPS, NALType, NALList, ConvertAnnexBToAVCC, NALRawType, NALListRaw, NALLength, NALCreateRaw, ConvertAnnexBToRawBuffers, NAL_SPS, NAL_SEI, NALCreateRawNoSizeHeader, NALCreateNoSizeHeader } from "./parser-implementations/NAL";
 import * as NAL from "./parser-implementations/NAL";
 import { LargeBuffer } from "./parser-lib/LargeBuffer";
 import { parseObject, filterBox, writeObject } from "./parser-lib/BinaryCoder";
@@ -15,6 +15,7 @@ import * as Jimp from "jimp";
 import { RootBox, StcoBox } from "./parser-implementations/BoxObjects";
 import { ArrayInfinite, TemplateToObject } from "./parser-lib/SerialTypes";
 import { RemainingDataRaw } from "./parser-lib/Primitives";
+import { min } from "./util/math";
 let jimpAny = Jimp as any;
 
 //testReadFile("C:/scratch/test.mp4");
@@ -31,6 +32,7 @@ if(process.argv.length > 2 &&
 ) {
     main(process.argv.slice(2));
 }
+
 
 async function main(args: string[]) {
     if(args.length <= 1) {
@@ -142,44 +144,70 @@ async function main(args: string[]) {
     }
 }
 
-export function getMP4NALIterator(path: string): {
-    timescale: number;
-    nals: {
-        timeInTimescale: number;
-        // Raw nal, no start codes or anything
-        nal: Buffer;
-    }[];
-} {
+
+/*
+let nals = GetMP4NALs("C:/Users/quent/Downloads/Norsk SlowTV Hurtigruten Minutt for Minutt BowCam Part 01 of 35 Bergen til Florø_all_key_frames.mp4");
+for(let nal of nals) {
+    console.log(nal.time, nal.isKeyFrame);
+}
+//*/
+
+// 142780546288 bits, should have read 142983720544
+// 142983720544
+
+export function GetMP4NALs(path: string): {
+    // In milliseconds
+    time: number;
+    // Raw nal, no start codes or anything
+    nal: Buffer;
+    isKeyFrame: boolean;
+    sps: Buffer;
+    pps: Buffer;
+    width: number;
+    height: number;
+}[] {
     // ctts, sample times
     // co64
     // moov.mvhd timescale
 
     let fileBuffer = LargeBuffer.FromFile(path);
     let object = parseObject(fileBuffer, RootBox);
-    let { timescale } = filterBox(object)("moov")("mvhd")().times;
 
     let moov = filterBox(object)("moov")();
 
-    let nalsWithTimes: { nal: Buffer; timeInTimescale: number }[] = [];
+    let nalsWithTimes: { nal: Buffer; time: number; isKeyFrame: boolean; sps: Buffer; pps: Buffer; width: number; height: number; }[] = [];
 
     moov.boxes.forEach(box => {
         if(box.type !== "trak") return;
         let type = filterBox(box)("mdia")("minf")("stbl")("stsd")().boxes[0].type;
         if(type !== "avc1") return;
 
+        let { timescale } = filterBox(box)("mdia")("mdhd")();
+
+        let avcC = filterBox(box)("mdia")("minf")("stbl")("stsd")("avc1")("avcC")();
+        if(avcC.spses.length !== 1) {
+            throw new Error(`Unexpected sps count. Expected 1. ${avcC.spses.length}`);
+        }
+        if(avcC.ppses.length !== 1) {
+            throw new Error(`Unexpected pps count. Expected 1. ${avcC.ppses.length}`);
+        }
+
+        let sps = avcC.spses[0].bytes.getCombinedBuffer();
+        let pps = avcC.ppses[0].bytes.getCombinedBuffer();
+
         let stbl = filterBox(box)("mdia")("minf")("stbl");
 
-        let ctts = stbl("ctts")();
+        let sampleTimeOffsets: number[] | undefined;
 
-        let sampleTimesMapped: number[] = [];
-
-        let time = 0;
-        ctts.samples.forEach(sampleTimeObj => {
-            for(let i = 0; i < sampleTimeObj.sample_count; i++) {
-                sampleTimesMapped.push(time);
-                time += sampleTimeObj.sample_offset;
+        if(stbl().boxes.some(x => x.type === "ctts")) {
+            let ctts = stbl("ctts")();
+            sampleTimeOffsets = [];
+            for(let sampleTimeObj of ctts.samples) {
+                for(let i = 0; i < sampleTimeObj.sample_count; i++) {
+                    sampleTimeOffsets.push(sampleTimeObj.sample_offset);
+                }
             }
-        });
+        }
 
         let sampleOffsets: Omit<TemplateToObject<typeof StcoBox>, "header"|"type">;
         if(stbl().boxes.some(x => x.type === "stco")) {
@@ -190,47 +218,109 @@ export function getMP4NALIterator(path: string): {
             throw new Error(`Can't find sample byte offsets.`);
         }
 
+        let syncSamples: { [sampleIndex: number]: boolean } | undefined;
+        if(stbl().boxes.some(x => x.type === "stss")) {
+            syncSamples = mapObjectValues(keyBy(stbl("stss")().sample_indexes, x => (x - 1).toString()), x => true);
+        }
+
+        let samplesList = stbl("stts")().samples;
+        if(samplesList.length !== 1) {
+            throw new Error(`Change in frame rates are unsupported right now. ${samplesList.length} different frame rates`);
+        }
+        let defaultSampleLength = samplesList[0].sample_delta;
+
         let sampleSizes = stbl("stsz")();
 
         let sampleIndex = 0;
         let chunkSampleCounts = stbl("stsc")().entries;
         // The last entry doesn't mean anything, the differences in first_chunk are what matters (which makes you wonder whey there isn't a chunk count instead of index...)
+
+        let width = filterBox(box)("tkhd")().width;
+        let height = filterBox(box)("tkhd")().height;
+
         for(let i = 0; i < chunkSampleCounts.length; i++) {
+        //for(let i = 0; i < 1; i++) {
             let samplesPerChunk = chunkSampleCounts[i].samples_per_chunk;
 
             let curChunkIndex = chunkSampleCounts[i].first_chunk - 1;
-            let nextChunkIndex = i + 1 < chunkSampleCounts.length ? chunkSampleCounts[i + 1].first_chunk - 1 : curChunkIndex + 1;
+            let nextChunkIndex: number;
+            if(i + 1 < chunkSampleCounts.length) {
+                nextChunkIndex = chunkSampleCounts[i + 1].first_chunk - 1;
+            } else {
+                nextChunkIndex = sampleOffsets.chunk_offsets.length;
+            }
             for(let chunkIndex = curChunkIndex; chunkIndex < nextChunkIndex; chunkIndex++) {
                 let fileOffset = sampleOffsets.chunk_offsets[chunkIndex];
                 for(let i = 0; i < samplesPerChunk; i++) {
                     let sampleSize = sampleSizes.sample_sizes[sampleIndex];
 
                     let nalBuffer = fileBuffer.slice(fileOffset, fileOffset + sampleSize);
-                    let time = sampleTimesMapped[sampleIndex];
+                    let time = (sampleTimeOffsets && sampleTimeOffsets[sampleIndex] || 0) + sampleIndex * defaultSampleLength;
 
-                    // Remove the length prefix (it is avcC format, I guess...).
-                    let nal = nalBuffer.getCombinedBuffer().slice(4);
+                    let nalList = {
+                        list: ArrayInfinite({
+                            len: NALLength(4),
+                            bytes: RemainingDataRaw
+                        })
+                    };
+                    let nals = parseObject(nalBuffer, nalList).list.map(x => x.bytes);
+                    
+                    for(let nal of nals) {
+                        let type = ParseNalHeaderByte(nal.readUInt8(0));
+                        if(type === "sei") {
+                            //console.log(`sei skipped`);
+                            continue;
+                        }
+                        if(type !== "slice") {
+                            throw new Error(`Unexpected nal of type ${type}. Expected sei or slice.`);
+                        }
+                        let isKeyFrame: boolean;
+                        if(syncSamples) {
+                            isKeyFrame = sampleIndex in syncSamples;
+                        } else {
+                            let info = ParseNalInfo(nal.getCombinedBuffer());
+                            if(info.type === "sei") {
+                                // Okay, it's an SEI, then probably a slice. I'm assuming the slice is a key frame, as the SEI is likely
+                                //  only on the first frame (which has to be a key frame, right?)
+                                isKeyFrame = true;
+                            }
+                            // 4848
+                            else if(info.type !== "slice") {
+                                throw new Error(`NAL isn't frame. It is type ${info.type}, should be slice.`);
+                            } else {
+                                isKeyFrame = info.sliceType === "I";
+                            }
+                        }
 
-                    nalsWithTimes.push({ nal, timeInTimescale: time });
+                        nalsWithTimes.push({
+                            width,
+                            height,
+                            nal: nal.getCombinedBuffer(),
+                            sps,
+                            pps,
+                            time: time / timescale * 1000,
+                            isKeyFrame
+                        });
+                    }
  
                     fileOffset += sampleSize;
                     sampleIndex++;
                 }
             }
         }
-        if(sampleIndex !== sampleTimesMapped.length) {
-            throw new Error(`There are ${sampleTimesMapped.length} sample times, but we read ${sampleIndex} times.`);
+        if(sampleTimeOffsets && sampleIndex !== sampleTimeOffsets.length) {
+            throw new Error(`There are ${sampleTimeOffsets.length} sample times, but we read ${sampleIndex} times.`);
         }
     });
 
-    nalsWithTimes.sort((a, b) => a.timeInTimescale - b.timeInTimescale);
+    nalsWithTimes.sort((a, b) => a.time - b.time);
 
-    console.log(`Nals ${nalsWithTimes.length}`);
+    let minTime = min(nalsWithTimes.map(x => x.time));
+    nalsWithTimes.forEach(obj => {
+        obj.time -= minTime;
+    });
 
-    return {
-        timescale,
-        nals: nalsWithTimes
-    };
+    return nalsWithTimes;
 }
 
 /** rawNal is a NAL with no start code, or length prefix. */
@@ -267,7 +357,7 @@ async function createSimulateFrame(time: number, text: string, width: number, he
     image.resize(width, height);
 
     let data: Buffer = image.bitmap.data;
-    let frameNumber = ~~time;
+    let frameNumber = Math.floor(time);
     for(let i = 0; i < width * height; i++) {
         let k = i * 4;
         let seed = (frameNumber + 1) * i;

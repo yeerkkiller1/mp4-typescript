@@ -465,7 +465,11 @@ export const NAL_SPS = ChooseInfer()({
             video_full_range_flag: BitPrimitive,
             colour_description_present_flag: BitPrimitive,
         })({
-            colour_description_present_flag_check: InvariantCheck(({colour_description_present_flag}) => colour_description_present_flag === 0),
+            [ErasedKey0]: ({colour_description_present_flag}) => colour_description_present_flag ? {
+                colour_primaries: UInt8,
+                transfer_characteristics: UInt8,
+                matrix_coefficients: UInt8,
+            } : {}
         })
         ();
     },
@@ -495,14 +499,15 @@ export const NAL_SPS = ChooseInfer()({
     pic_struct_present_flag: BitPrimitive,
     bitstream_restriction_flag: BitPrimitive,
 })({
-    bitstream_restriction_flag_check: InvariantCheck(({bitstream_restriction_flag}) => bitstream_restriction_flag === 1),
-    motion_vectors_over_pic_boundaries_flag: BitPrimitive,
-    max_bytes_per_pic_denom: UExpGolomb,
-    max_bits_per_mb_denom: UExpGolomb,
-    log2_max_mv_length_horizontal: UExpGolomb,
-    log2_max_mv_length_vertical: UExpGolomb,
-    max_num_reorder_frames: UExpGolomb,
-    max_dec_frame_buffering: UExpGolomb,
+    [ErasedKey4]: ({bitstream_restriction_flag}) => bitstream_restriction_flag ? {
+        motion_vectors_over_pic_boundaries_flag: BitPrimitive,
+        max_bytes_per_pic_denom: UExpGolomb,
+        max_bits_per_mb_denom: UExpGolomb,
+        log2_max_mv_length_horizontal: UExpGolomb,
+        log2_max_mv_length_vertical: UExpGolomb,
+        max_num_reorder_frames: UExpGolomb,
+        max_dec_frame_buffering: UExpGolomb,
+    } : {},
     trailing: RbspTrailingPrimitive,
 })
 ();
@@ -581,7 +586,7 @@ const FunnyNumberType: SerialObjectPrimitive<number> = {
 };
 
 // #region nal_unit_type = 6
-const NAL_SEI = ChooseInfer()({
+export const NAL_SEI = ChooseInfer()({
     payloadType: FunnyNumberType,
     payloadSize: FunnyNumberType,
 })({

@@ -80,7 +80,7 @@ export class LargeBuffer {
                 let expectedSize = LargeBuffer.GetBitCount(curBuf);
                 let curBitsObj = LargeBuffer.ToBits(curBuf);
 
-                let offset = ~~(finalBits.length / 8);
+                let offset = Math.floor(finalBits.length / 8);
                 let ranges = curBitsObj.ranges;
 
                 for(let range of ranges) {
@@ -117,7 +117,7 @@ export class LargeBuffer {
             // Now make the bits into bytes.
             let bytes: number[] = [];
             let totalBytes = finalBits.length / 8;
-            if(~~totalBytes !== totalBytes) {
+            if(Math.floor(totalBytes) !== totalBytes) {
                 throw new Error(`impossible`);
             }
             for(let i = 0; i < totalBytes; i++) {
@@ -201,7 +201,7 @@ export class LargeBuffer {
 
             let bitPos = 0;
             for(let b of buffers) {
-                let offset = ~~(bitPos / 8);
+                let offset = Math.floor(bitPos / 8);
                 let bitSize = LargeBuffer.GetBitCount(b);
                 bitPos += bitSize;
 

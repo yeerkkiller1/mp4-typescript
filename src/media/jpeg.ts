@@ -17,7 +17,7 @@ export async function createSimulatedFrame(time: number, width: number, height: 
     image.resize(width, height);
 
     let data: Buffer = image.bitmap.data;
-    let frameNumber = ~~time;
+    let frameNumber = Math.floor(time);
     for(let i = 0; i < width * height; i++) {
         let k = i * 4;
         let seed = (frameNumber + 1) * i;
