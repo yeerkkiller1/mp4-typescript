@@ -254,7 +254,8 @@ const RbspTrailingPrimitive: SerialObjectPrimitive<void> = {
         while(context.bitOffset !== 0) {
             let alignment_zero_bit = readBit(context);
             if(alignment_zero_bit !== 0) {
-                throw new Error(`rbsp alignment bit was not 0. This means the data is corrupted.`);
+                console.error(`rbsp alignment bit was not 0. This means the data is corrupted.`);
+                break;
             }
         }
     },
@@ -499,7 +500,7 @@ export const NAL_SPS = ChooseInfer()({
     pic_struct_present_flag: BitPrimitive,
     bitstream_restriction_flag: BitPrimitive,
 })({
-    [ErasedKey4]: ({bitstream_restriction_flag}) => bitstream_restriction_flag ? {
+    [ErasedKey5]: ({bitstream_restriction_flag}) => bitstream_restriction_flag ? {
         motion_vectors_over_pic_boundaries_flag: BitPrimitive,
         max_bytes_per_pic_denom: UExpGolomb,
         max_bits_per_mb_denom: UExpGolomb,

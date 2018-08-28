@@ -87,6 +87,7 @@ async function main(args: string[]) {
 
                 let nal = nals[i];
                 let type = nal.nalObject.type;
+
                 if(nal.nalObject.type === "slice") {
                     let header = nal.nalObject.nal.slice_header;
                     console.log(`${type} (size ${nalBuffer.getLength() - 4}) ${header.sliceTypeStr}, order lsb: ${header.pic_order_cnt_lsb}`);
