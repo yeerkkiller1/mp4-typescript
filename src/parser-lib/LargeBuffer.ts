@@ -5,7 +5,6 @@ import { textFromUInt32, readUInt64BE, textToUInt32, writeUInt64BE } from "../ut
 import { range, flatten } from "../util/misc";
 import { byteToBits, bitsToByte, Bit } from "./Primitives";
 import { isArray } from "../util/type";
-import { createWriteStream } from "fs";
 import { copyBufferWriteContext, getBufferWriteContext, WriteContextRange, getBufferWriteContextRanges, setBufferWriteContext } from "./BinaryCoder";
 
 
@@ -254,7 +253,7 @@ export class LargeBuffer {
             try {
                 this.verifyByteAligned();
 
-                let stream = createWriteStream(path);
+                let stream = fs.createWriteStream(path);
                 stream.once("open", (fd) => {
                     try {
                         for(let buf of this.buffers) {
@@ -357,6 +356,12 @@ export class LargeBuffer {
     public slice(start: number, end: number): LargeBuffer {
         this.verifyByteAligned();
 
+        // TODO: Add all the slice start/end handling, as slice should never throw (and negative
+        //  numbers are valid, and have special meanings).
+        if(end > this.getLength()) {
+            end = this.getLength();
+        }
+
         let subBuffers: Buffer[] = [];
         let pos = start;
         while (pos < end) {
@@ -384,5 +389,9 @@ export class LargeBuffer {
     // Eh... please don't mutate this list. I would make it readonly... but my flatten is dumb and doesn't understand that.
     public getInternalBufferList(): Buffer[] {
         return this.buffers;
+    }
+
+    public toJSON() {
+        return `LargeBuffer(${this.getLength()})`;
     }
 }

@@ -174,7 +174,7 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
                 let child: SerialObject[""] = object[key];
 
                 if(child === undefined) {
-                    throw debugError(`Child is undefined.`);
+                    throw debugError(`Child is undefined. The Box definition should wrap undefined with CodeOnlyValue()`);
                 }
 
                 parseChild(child, { key, parent: outputObject as any });

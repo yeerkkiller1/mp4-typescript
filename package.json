@@ -3,7 +3,7 @@
     "start": "bash watch.sh"
   },
   "name": "mp4-typescript",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "main": "./dist/mp4-typescript.js",
   "types": "./dist/mp4-typescript.d.ts",
   "author": "yeerkkiller1 <yeerkkiller1@gmail.com>",
@@ -13,26 +13,21 @@
     "url": "https://github.com/yeerkkiller1/mp4-typescript"
   },
   "devDependencies": {
-    "@types/jasmine": "^2.8.7",
     "@types/node": "^7.0.12",
     "clean-typings-file": "^0.1.6",
-    "jasmine": "^3.1.0",
     "run-when-changed": "^2.1.0",
     "source-map-loader": "^0.2.3",
     "ts-loader": "^4.4.1",
     "typescript": "^2.9.2",
     "webpack": "^4.12.1",
     "webpack-cli": "^3.0.8",
-    "webpack-dev-server": "^2.9.4",
-    "webpack-visualizer-plugin": "^0.1.11"
+    "webpack-dev-server": "^2.9.4"
   },
   "dependencies": {
     "jimp": "^0.2.28",
     "nan": "^2.10.0",
     "node-gyp": "https://github.com/yeerkkiller1/node-gyp",
-    "p-info": "^0.1.15",
     "pchannel": "^0.4.5",
-    "temp-folder": "^0.2.17",
     "webpack-node-externals": "^1.7.2",
     "x264-npm": "^0.155.8"
   }

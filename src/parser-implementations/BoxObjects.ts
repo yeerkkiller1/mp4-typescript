@@ -708,8 +708,8 @@ export const TrunBox = ChooseInfer()({
 })({
     values: ({flags}) => (
         ({
-            data_offset: flags.data_offset_present ? UInt32 : undefined,
-            first_sample_flags: flags.first_sample_flags_present ? sample_flags : undefined,
+            data_offset: flags.data_offset_present ? UInt32 : CodeOnlyValue(undefined),
+            first_sample_flags: flags.first_sample_flags_present ? sample_flags : CodeOnlyValue(undefined),
         })
     ),
 })({

@@ -7,7 +7,6 @@ import { LargeBuffer } from "./parser-lib/LargeBuffer";
 import { parseObject, filterBox, writeObject } from "./parser-lib/BinaryCoder";
 import { createVideo3, SampleInfo } from "./media/create-mp4";
 import { writeFileSync, readFile, readFileSync } from "fs";
-import { CreateTempFolderPath } from "temp-folder";
 import { SetTimeoutAsync } from "pchannel";
 import { testReadFile, testWriteFile, testWrite } from "./test/utils";
 
@@ -25,12 +24,15 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
-console.log(process.argv);
-if(process.argv.length > 2 &&
-    (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
-    process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")
-) {
-    main(process.argv.slice(2));
+
+if(window === undefined) {
+    console.log(process.argv);
+    if(process.argv.length > 2 &&
+        (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
+        process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")
+    ) {
+        main(process.argv.slice(2));
+    }
 }
 
 
@@ -143,6 +145,11 @@ async function main(args: string[]) {
             output.WriteToFile(outputNALFile);
         }
     }
+}
+
+export function DecodeMP4(buffer: Buffer) {
+    let result = parseObject(new LargeBuffer([buffer]), RootBox);
+    return result as any;
 }
 
 

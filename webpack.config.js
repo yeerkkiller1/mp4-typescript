@@ -1,6 +1,5 @@
 var fs = require("fs");
 var webpack = require("webpack");
-var Visualizer = require("webpack-visualizer-plugin");
 var path = require("path");
 var nodeExternals = require("webpack-node-externals");
 
@@ -43,7 +42,6 @@ function getConfig (env) {
             new webpack.DefinePlugin({
                 TEST: false
             }),
-            new Visualizer(),
         ],
 
         node: { __dirname: false },

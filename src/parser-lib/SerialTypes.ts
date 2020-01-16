@@ -2,8 +2,6 @@
 import { LargeBuffer } from "./LargeBuffer";
 import { isArray } from "../util/type";
 
-const TestSymbol = Symbol();
-
 const BoxLookupSymbol = Symbol();
 type S = SerialObject;
 

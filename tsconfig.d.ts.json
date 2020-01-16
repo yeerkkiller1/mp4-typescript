@@ -10,7 +10,7 @@
         "jsx": "react",
         "emitDeclarationOnly": true,
         "declaration": true,
-        "types": [ "node", "jasmine" ]
+        "types": [ "node" ]
     },
     "files": [
         "./src/mp4-typescript.ts"
