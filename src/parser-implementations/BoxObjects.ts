@@ -327,6 +327,18 @@ export const PaspBox = {
     vSpacing: UInt32,
 };
 
+export const ClapBox = {
+    ... Box("clap"),
+    cleanApertureWidthN: UInt32,
+    cleanApertureWidthD: UInt32,
+    cleanApertureHeightN: UInt32,
+    cleanApertureHeightD: UInt32,
+    horizOffN: UInt32,
+    horizOffD: UInt32,
+    vertOffN: UInt32,
+    vertOffD: UInt32,
+};
+
 export const Avc1Box = {
     ... Box("avc1"),
     reserved: repeat(UInt8, 6),
@@ -349,7 +361,7 @@ export const Avc1Box = {
     depth: UInt16,
     pre_defined2: Int16,
 
-    boxes: BoxLookup(AvcCBox, PaspBox),
+    boxes: BoxLookup(AvcCBox, ClapBox, PaspBox),
 
     //extension: [MPEG4ExtensionDescriptorsBox],
 

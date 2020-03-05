@@ -490,6 +490,10 @@ export async function MuxVideo(params: {
     return await InternalCreateVideo(params);
 }
 
+export function ReEncodeFromParse(boxes: any): any {
+    return writeObject(RootBox, boxes);
+}
+
 // time gst-launch-1.0 -vv -e v4l2src device=/dev/video0 ! capsfilter caps="image/jpeg,width=1920,height=1080,framerate=30/1" ! jpegdec ! omxh264enc target-bitrate=15000000 control-rate=variable periodicty-idr=10 ! video/x-h264, profile=high ! tcpclientsink port=3000 host=192.168.0.202
 
 // time gst-launch-1.0 -vv -e filesrc location=raw10.jpeg ! filesink=output10.h264
