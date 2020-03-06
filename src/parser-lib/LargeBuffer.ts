@@ -55,7 +55,7 @@ export class LargeBuffer {
     private bitEndOffset = 0;
     private buffers: Buffer[];
 
-    private creator = new Error().stack;
+    //private creator = new Error().stack;
     constructor(buffers: (Buffer|(Bit[])|LargeBuffer)[]) {
         // buffers -> this.buffers
         this.buffers = [];
@@ -244,7 +244,7 @@ export class LargeBuffer {
 
     private verifyByteAligned() {
         if(this.bitStartOffset !== 0 || this.bitEndOffset !== 0) {
-            console.log(this.creator);
+            //console.log(this.creator);
             throw new Error(`Buffer still had a bit offset, and so most operations are invalid on it. It can be combined with another BitBuffer in the constructor to make it valid. Buffer had ${LargeBuffer.GetBitCount(this)} bits, UID ${this.UID}`);
         }
     }

@@ -161,6 +161,7 @@ export function DecodeMP4(buffer: Buffer) {
     return result as any;
 }
 
+
 export function ReEncodeFromParse(boxes: any): any {
     return writeObject(RootBox, boxes);
 }
