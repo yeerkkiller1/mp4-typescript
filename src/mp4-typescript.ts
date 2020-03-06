@@ -11,7 +11,7 @@ import { SetTimeoutAsync } from "pchannel";
 import { testReadFile, testWriteFile, testWrite } from "./test/utils";
 
 import * as Jimp from "jimp";
-import { RootBox, StcoBox } from "./parser-implementations/BoxObjects";
+import { RootBox, StcoBox, RootBoxForEditLists } from "./parser-implementations/BoxObjects";
 import { ArrayInfinite, TemplateToObject } from "./parser-lib/SerialTypes";
 import { RemainingDataRaw } from "./parser-lib/Primitives";
 import { min } from "./util/math";
@@ -24,13 +24,11 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
-
 if(typeof window === "undefined") {
     if(process.argv.length > 2 &&
         (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
-        process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript")
+        (process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript") || process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript.js"))
     ) {
-        console.log(process.argv);
         main(process.argv.slice(2));
     }
 }
@@ -111,6 +109,17 @@ async function main(args: string[]) {
 
             break;
         }
+        case "decodeMP4Tiny": {
+
+            let inputMP4Path = args[1];
+
+            let buf = readFileSync(inputMP4Path);
+            let json = DecodeEditListMP4(buf);
+
+            console.log(JSON.stringify(json, null, 4));
+
+            break;
+        }
         case "compare": {
             testWrite(LargeBuffer.FromFile(args[1]), LargeBuffer.FromFile(args[2]));
             break;
@@ -150,6 +159,19 @@ async function main(args: string[]) {
 export function DecodeMP4(buffer: Buffer) {
     let result = parseObject(new LargeBuffer([buffer]), RootBox);
     return result as any;
+}
+
+export function ReEncodeFromParse(boxes: any): any {
+    return writeObject(RootBox, boxes);
+}
+
+/** Only decodes enough to change the edit lists, for fast video editing. */
+export function DecodeEditListMP4(buffer: Buffer) {
+    let result = parseObject(new LargeBuffer([buffer]), RootBoxForEditLists);
+    return result as any;
+}
+export function ReEncodeEditListMP4(boxes: any) {
+    return writeObject(RootBoxForEditLists, boxes) as any;
 }
 
 
@@ -488,10 +510,6 @@ export async function MuxVideo(params: {
     timescale?: number;
 }): Promise<Buffer> {
     return await InternalCreateVideo(params);
-}
-
-export function ReEncodeFromParse(boxes: any): any {
-    return writeObject(RootBox, boxes);
 }
 
 // time gst-launch-1.0 -vv -e v4l2src device=/dev/video0 ! capsfilter caps="image/jpeg,width=1920,height=1080,framerate=30/1" ! jpegdec ! omxh264enc target-bitrate=15000000 control-rate=variable periodicty-idr=10 ! video/x-h264, profile=high ! tcpclientsink port=3000 host=192.168.0.202

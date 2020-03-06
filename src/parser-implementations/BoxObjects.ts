@@ -317,6 +317,24 @@ export const AvcCBox = ChooseInfer()({
 })
 */
 ({
+    /*
+if( profile_idc  ==  100  ||  profile_idc  ==  110  ||
+profile_idc  ==  122  ||  profile_idc  ==  144 )
+{
+    bit(6) reserved = ‘111111’b;
+    unsigned int(2) chroma_format;
+    bit(5) reserved = ‘11111’b;
+    unsigned int(3) bit_depth_luma_minus8;
+    bit(5) reserved = ‘11111’b;
+    unsigned int(3) bit_depth_chroma_minus8;
+    unsigned int(8) numOfSequenceParameterSetExt;
+    for (i=0; i< numOfSequenceParameterSetExt; i++) {
+        unsigned int(16) sequenceParameterSetExtLength;
+        bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;
+    }
+}
+
+    */
     remainingBytes: ArrayInfinite(UInt8)
 })
 ();
@@ -792,6 +810,41 @@ export const RootBox = {
         EmsgBox,
         SidxBox,
         MoofBox
+    ),
+};
+
+
+export const MdiaBox_ed = {
+    ... Box("mdia"),
+    boxes: BoxLookup(
+        MdhdBox,
+        AnyBox
+    ),
+};
+
+export const TrakBox_ed = {
+    ... Box("trak"),
+    boxes: BoxLookup(
+        EdtsBox,
+        MdiaBox_ed,
+        AnyBox
+    ),
+};
+
+export const MoovBox_ed = {
+    ... Box("moov"),
+    boxes: BoxLookup(
+        MvhdBox,
+        TrakBox_ed,
+        AnyBox
+    ),
+};
+
+/** Smaller, only for edit lists. */
+export const RootBoxForEditLists = {
+    boxes: BoxLookup(
+        MoovBox_ed,
+        AnyBox
     ),
 };
 
