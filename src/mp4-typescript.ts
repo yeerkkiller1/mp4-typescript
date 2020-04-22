@@ -156,7 +156,7 @@ async function main(args: string[]) {
     }
 }
 
-export function DecodeMP4(buffer: Buffer) {
+export function DecodeMP4(buffer: Buffer|ArrayBuffer|Uint8Array) {
     let result = parseObject(new LargeBuffer([buffer]), RootBox);
     return result as any;
 }
@@ -167,7 +167,7 @@ export function ReEncodeFromParse(boxes: any): any {
 }
 
 /** Only decodes enough to change the edit lists, for fast video editing. */
-export function DecodeEditListMP4(buffer: Buffer) {
+export function DecodeEditListMP4(buffer: Buffer|ArrayBuffer|Uint8Array) {
     let result = parseObject(new LargeBuffer([buffer]), RootBoxForEditLists);
     return result as any;
 }

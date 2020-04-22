@@ -56,7 +56,7 @@ export class LargeBuffer {
     private buffers: Buffer[];
 
     //private creator = new Error().stack;
-    constructor(buffers: (Buffer|(Bit[])|LargeBuffer)[]) {
+    constructor(buffers: (Buffer|(Bit[])|LargeBuffer|Uint8Array|ArrayBuffer)[]) {
         // buffers -> this.buffers
         this.buffers = [];
 
@@ -150,8 +150,16 @@ export class LargeBuffer {
                 if(isArray(buf)) {
                     throw new Error(`impossible`);
                 }
+                if(buf instanceof ArrayBuffer) {
+                    outputBuffers.push(Buffer.from(buf));
+                    continue;
+                }
                 if(buf instanceof Buffer) {
                     outputBuffers.push(buf);
+                    continue;
+                }
+                if(buf instanceof Uint8Array) {
+                    outputBuffers.push(Buffer.from(buf));
                     continue;
                 }
                 if(buf instanceof LargeBuffer) {
@@ -166,8 +174,9 @@ export class LargeBuffer {
                     }
                     continue;
                 }
+                
 
-                let no: never = buf;
+                let typeCheck: never = buf;
                 throw new Error(`Buffer type not handled`);
             }
             this.buffers = outputBuffers;
@@ -182,12 +191,17 @@ export class LargeBuffer {
         this.bufferStarts.push(pos);
     }
 
-    private static ToBits(buffer: Buffer|(Bit[])|LargeBuffer): {bits: Bit[], ranges: WriteContextRange[]} {
+    private static ToBits(buffer: Buffer|(Bit[])|LargeBuffer|Uint8Array|ArrayBuffer): {bits: Bit[], ranges: WriteContextRange[]} {
         if(isArray(buffer)) {
             return {bits: buffer, ranges: []};
         }
-        if(buffer instanceof Buffer) {
-            console.log("ToBit removing context", getBufferWriteContext(buffer));
+        if(buffer instanceof Buffer || buffer instanceof ArrayBuffer) {
+            let buf = buffer instanceof ArrayBuffer ? Buffer.from(buffer) : buffer;
+
+            console.log("ToBit removing context", getBufferWriteContext(buf));
+            return {bits: flatten(Array.from(buf).map(x => byteToBits(x))), ranges: []};
+        }
+        if(buffer instanceof Uint8Array) {
             return {bits: flatten(Array.from(buffer).map(x => byteToBits(x))), ranges: []};
         }
         if(buffer instanceof LargeBuffer) {
@@ -234,10 +248,12 @@ export class LargeBuffer {
         throw new Error(`Buffer type not handled`);
     }
 
-    public static GetBitCount(x: Buffer|(Bit[])|LargeBuffer): number {
+    public static GetBitCount(x: Buffer|(Bit[])|LargeBuffer|Uint8Array|ArrayBuffer): number {
         return (
             (x instanceof Buffer) ? x.length * 8 :
             (x instanceof LargeBuffer) ? (x.buffers.reduce((prev, x) => prev + x.length * 8, 0) - x.bitStartOffset + x.bitEndOffset) :
+            (x instanceof Uint8Array) ? x.length * 8 :
+            (x instanceof ArrayBuffer) ? x.byteLength * 8 :
             x.length
         );
     }
