@@ -152,6 +152,30 @@ async function main(args: string[]) {
 
             let output = new LargeBuffer([sps, pps].concat(nals).map(x => new LargeBuffer([startCode, x])));
             output.WriteToFile(outputNALFile);
+            break;
+        }
+        case "extractNALsRaw": {
+            let inputMP4Path = args[1];
+            let outputNALFile = args[2];
+
+            let object = parseObject(LargeBuffer.FromFile(inputMP4Path), RootBox);
+
+            let data = object.boxes.filter(x => x.type === "mdat")[0];
+            let nalList = {
+                list: ArrayInfinite({
+                    len: NALLength(4),
+                    bytes: RemainingDataRaw
+                })
+            };
+            let nals = parseObject(data.bytes, nalList).list.map(x => x.bytes);
+
+            // Now, convert combine nals, sps and pps in annex b format.
+
+            let startCode = new Buffer([0, 0, 0, 1]);
+
+            let output = new LargeBuffer([].concat(nals).map(x => new LargeBuffer([startCode, x])));
+            output.WriteToFile(outputNALFile);
+            break;
         }
     }
 }
