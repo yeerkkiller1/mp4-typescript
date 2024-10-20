@@ -3,7 +3,7 @@
     "start": "bash watch.sh"
   },
   "name": "mp4-typescript",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "main": "./index.ts",
   "author": "yeerkkiller1 <yeerkkiller1@gmail.com>",
   "license": "MIT",
