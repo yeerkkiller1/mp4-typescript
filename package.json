@@ -3,7 +3,7 @@
     "start": "bash watch.sh"
   },
   "name": "mp4-typescript",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "main": "./dist/mp4-typescript.js",
   "types": "./dist/mp4-typescript.d.ts",
   "author": "yeerkkiller1 <yeerkkiller1@gmail.com>",
@@ -28,6 +28,7 @@
     "nan": "^2.10.0",
     "node-gyp": "https://github.com/yeerkkiller1/node-gyp",
     "pchannel": "^0.4.5",
+    "typenode": "^0.5.1",
     "webpack-node-externals": "^1.7.2",
     "x264-npm": "^0.155.8"
   }
