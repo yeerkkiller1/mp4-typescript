@@ -69,6 +69,12 @@ export async function createVideo3(
         // spsInfo.nal.pic_width_in_mbs_minus1
         width = (spsInfo.nal.pic_width_in_mbs_minus1 + 1) * 16;
         height = (spsInfo.nal.pic_height_in_map_units_minus1 + 1) * 16;
+        if (spsInfo.nal.frame_cropping_flag) {
+            let cropUnitX = spsInfo.nal.frame_crop_left_offset + spsInfo.nal.frame_crop_right_offset;
+            let cropUnitY = spsInfo.nal.frame_crop_top_offset + spsInfo.nal.frame_crop_bottom_offset;
+            width -= cropUnitX * 2;
+            height -= cropUnitY * 2;
+        }
     }
 
     if (!sps) {
