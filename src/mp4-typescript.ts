@@ -10,12 +10,10 @@ import { writeFileSync, readFile, readFileSync } from "fs";
 import { SetTimeoutAsync } from "pchannel";
 import { testReadFile, testWriteFile, testWrite } from "./test/utils";
 
-import * as Jimp from "jimp";
 import { RootBox, StcoBox, RootBoxForEditLists } from "./parser-implementations/BoxObjects";
 import { ArrayInfinite, TemplateToObject } from "./parser-lib/SerialTypes";
 import { RemainingDataRaw } from "./parser-lib/Primitives";
 import { min } from "./util/math";
-let jimpAny = Jimp as any;
 
 //testReadFile("C:/scratch/test.mp4");
 //testReadFile("./dist/output0.mp4");
@@ -24,10 +22,10 @@ let jimpAny = Jimp as any;
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
-if(typeof window === "undefined") {
-    if(process.argv.length > 2 &&
+if (typeof window === "undefined") {
+    if (process.argv.length > 2 &&
         (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
-        (process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript") || process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript.js"))
+        (process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript") || process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript.js") || process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript.ts"))
     ) {
         main(process.argv.slice(2));
     }
@@ -35,13 +33,13 @@ if(typeof window === "undefined") {
 
 
 async function main(args: string[]) {
-    if(args.length <= 1) {
+    if (args.length <= 1) {
         console.error(`Format: ["nal", filePath] | ["mux", inputNalPath, outputPath] | ["decodeMP4", inputMP4Path, outputMP4InfoPath|undefined]`);
         process.exit();
     }
 
     let verb = args[0];
-    switch(verb) {
+    switch (verb) {
         default: throw new Error(`Unsupported verb ${verb}`);
         case "mux": {
             let inputNalPath = args[1];
@@ -82,13 +80,13 @@ async function main(args: string[]) {
             let rawNals = parseObject(buf, NALListRaw(4)).NALs;
 
             console.log(`Found ${nals.length} NALs`);
-            for(let i = 0; i < nals.length; i++) {
+            for (let i = 0; i < nals.length; i++) {
                 let nalBuffer = writeObject(NALCreateRaw(4), rawNals[i])
 
                 let nal = nals[i];
                 let type = nal.nalObject.type;
 
-                if(nal.nalObject.type === "slice") {
+                if (nal.nalObject.type === "slice") {
                     let header = nal.nalObject.nal.slice_header;
                     console.log(`${type} (size ${nalBuffer.getLength() - 4}) ${header.sliceTypeStr}, order lsb: ${header.pic_order_cnt_lsb}`);
                 } else {
@@ -136,7 +134,7 @@ async function main(args: string[]) {
 
             let sps = avcC.spses[0].bytes;
             let pps = avcC.ppses[0].bytes;
-            
+
             let data = filterBox(object)("mdat")();
             let nalList = {
                 list: ArrayInfinite({
@@ -180,7 +178,7 @@ async function main(args: string[]) {
     }
 }
 
-export function DecodeMP4(buffer: Buffer|ArrayBuffer|Uint8Array) {
+export function DecodeMP4(buffer: Buffer | ArrayBuffer | Uint8Array) {
     let result = parseObject(new LargeBuffer([buffer]), RootBox);
     return result as any;
 }
@@ -191,7 +189,7 @@ export function ReEncodeFromParse(boxes: any): any {
 }
 
 /** Only decodes enough to change the edit lists, for fast video editing. */
-export function DecodeEditListMP4(buffer: Buffer|ArrayBuffer|Uint8Array) {
+export function DecodeEditListMP4(buffer: Buffer | ArrayBuffer | Uint8Array) {
     let result = parseObject(new LargeBuffer([buffer]), RootBoxForEditLists);
     return result as any;
 }
@@ -233,17 +231,17 @@ export function GetMP4NALs(path: string): {
     let nalsWithTimes: { nal: Buffer; time: number; isKeyFrame: boolean; sps: Buffer; pps: Buffer; width: number; height: number; }[] = [];
 
     moov.boxes.forEach(box => {
-        if(box.type !== "trak") return;
+        if (box.type !== "trak") return;
         let type = filterBox(box)("mdia")("minf")("stbl")("stsd")().boxes[0].type;
-        if(type !== "avc1") return;
+        if (type !== "avc1") return;
 
         let { timescale } = filterBox(box)("mdia")("mdhd")();
 
         let avcC = filterBox(box)("mdia")("minf")("stbl")("stsd")("avc1")("avcC")();
-        if(avcC.spses.length !== 1) {
+        if (avcC.spses.length !== 1) {
             throw new Error(`Unexpected sps count. Expected 1. ${avcC.spses.length}`);
         }
-        if(avcC.ppses.length !== 1) {
+        if (avcC.ppses.length !== 1) {
             throw new Error(`Unexpected pps count. Expected 1. ${avcC.ppses.length}`);
         }
 
@@ -254,32 +252,32 @@ export function GetMP4NALs(path: string): {
 
         let sampleTimeOffsets: number[] | undefined;
 
-        if(stbl().boxes.some(x => x.type === "ctts")) {
+        if (stbl().boxes.some(x => x.type === "ctts")) {
             let ctts = stbl("ctts")();
             sampleTimeOffsets = [];
-            for(let sampleTimeObj of ctts.samples) {
-                for(let i = 0; i < sampleTimeObj.sample_count; i++) {
+            for (let sampleTimeObj of ctts.samples) {
+                for (let i = 0; i < sampleTimeObj.sample_count; i++) {
                     sampleTimeOffsets.push(sampleTimeObj.sample_offset);
                 }
             }
         }
 
-        let sampleOffsets: Omit<TemplateToObject<typeof StcoBox>, "header"|"type">;
-        if(stbl().boxes.some(x => x.type === "stco")) {
+        let sampleOffsets: Omit<TemplateToObject<typeof StcoBox>, "header" | "type">;
+        if (stbl().boxes.some(x => x.type === "stco")) {
             sampleOffsets = stbl("stco")();
-        } else if(stbl().boxes.some(x => x.type === "co64")) {
+        } else if (stbl().boxes.some(x => x.type === "co64")) {
             sampleOffsets = stbl("co64")();
         } else {
             throw new Error(`Can't find sample byte offsets.`);
         }
 
         let syncSamples: { [sampleIndex: number]: boolean } | undefined;
-        if(stbl().boxes.some(x => x.type === "stss")) {
+        if (stbl().boxes.some(x => x.type === "stss")) {
             syncSamples = mapObjectValues(keyBy(stbl("stss")().sample_indexes, x => (x - 1).toString()), x => true);
         }
 
         let samplesList = stbl("stts")().samples;
-        if(samplesList.length !== 1) {
+        if (samplesList.length !== 1) {
             throw new Error(`Change in frame rates are unsupported right now. ${samplesList.length} different frame rates`);
         }
         let defaultSampleLength = samplesList[0].sample_delta;
@@ -293,20 +291,20 @@ export function GetMP4NALs(path: string): {
         let width = filterBox(box)("tkhd")().width;
         let height = filterBox(box)("tkhd")().height;
 
-        for(let i = 0; i < chunkSampleCounts.length; i++) {
-        //for(let i = 0; i < 1; i++) {
+        for (let i = 0; i < chunkSampleCounts.length; i++) {
+            //for(let i = 0; i < 1; i++) {
             let samplesPerChunk = chunkSampleCounts[i].samples_per_chunk;
 
             let curChunkIndex = chunkSampleCounts[i].first_chunk - 1;
             let nextChunkIndex: number;
-            if(i + 1 < chunkSampleCounts.length) {
+            if (i + 1 < chunkSampleCounts.length) {
                 nextChunkIndex = chunkSampleCounts[i + 1].first_chunk - 1;
             } else {
                 nextChunkIndex = sampleOffsets.chunk_offsets.length;
             }
-            for(let chunkIndex = curChunkIndex; chunkIndex < nextChunkIndex; chunkIndex++) {
+            for (let chunkIndex = curChunkIndex; chunkIndex < nextChunkIndex; chunkIndex++) {
                 let fileOffset = sampleOffsets.chunk_offsets[chunkIndex];
-                for(let i = 0; i < samplesPerChunk; i++) {
+                for (let i = 0; i < samplesPerChunk; i++) {
                     let sampleSize = sampleSizes.sample_sizes[sampleIndex];
 
                     let nalBuffer = fileBuffer.slice(fileOffset, fileOffset + sampleSize);
@@ -319,28 +317,28 @@ export function GetMP4NALs(path: string): {
                         })
                     };
                     let nals = parseObject(nalBuffer, nalList).list.map(x => x.bytes);
-                    
-                    for(let nal of nals) {
+
+                    for (let nal of nals) {
                         let type = ParseNalHeaderByte(nal.readUInt8(0));
-                        if(type === "sei") {
+                        if (type === "sei") {
                             //console.log(`sei skipped`);
                             continue;
                         }
-                        if(type !== "slice") {
+                        if (type !== "slice") {
                             throw new Error(`Unexpected nal of type ${type}. Expected sei or slice.`);
                         }
                         let isKeyFrame: boolean;
-                        if(syncSamples) {
+                        if (syncSamples) {
                             isKeyFrame = sampleIndex in syncSamples;
                         } else {
                             let info = ParseNalInfo(nal.getCombinedBuffer());
-                            if(info.type === "sei") {
+                            if (info.type === "sei") {
                                 // Okay, it's an SEI, then probably a slice. I'm assuming the slice is a key frame, as the SEI is likely
                                 //  only on the first frame (which has to be a key frame, right?)
                                 isKeyFrame = true;
                             }
                             // 4848
-                            else if(info.type !== "slice") {
+                            else if (info.type !== "slice") {
                                 throw new Error(`NAL isn't frame. It is type ${info.type}, should be slice.`);
                             } else {
                                 isKeyFrame = info.sliceType === "I";
@@ -357,13 +355,13 @@ export function GetMP4NALs(path: string): {
                             isKeyFrame
                         });
                     }
- 
+
                     fileOffset += sampleSize;
                     sampleIndex++;
                 }
             }
         }
-        if(sampleTimeOffsets && sampleIndex !== sampleTimeOffsets.length) {
+        if (sampleTimeOffsets && sampleIndex !== sampleTimeOffsets.length) {
             throw new Error(`There are ${sampleTimeOffsets.length} sample times, but we read ${sampleIndex} times.`);
         }
     });
@@ -380,73 +378,28 @@ export function GetMP4NALs(path: string): {
 
 /** rawNal is a NAL with no start code, or length prefix. */
 export function ParseNalInfo(rawNal: Buffer): {
-    type: "sps"|"pps"|"sei"|"unknown"
+    type: "sps" | "pps" | "sei" | "unknown"
 } | {
     type: "slice",
-    sliceType: "P"|"B"|"I"|"SP"|"SI"
+    sliceType: "P" | "B" | "I" | "SP" | "SI"
 } {
     return NAL.ParseNalInfo(rawNal);
 }
 
 /** The header byte is the first byte after the start code. */
-export function ParseNalHeaderByte(headerByte: number): "sps"|"pps"|"sei"|"slice"|"unknown" {
+export function ParseNalHeaderByte(headerByte: number): "sps" | "pps" | "sei" | "slice" | "unknown" {
     return NAL.ParseNalHeaderByte(headerByte);
 }
 
-async function createSimulateFrame(time: number, text: string, width: number, height: number): Promise<Buffer> {
-    async function loadFont(type: string): Promise<any> {
-        return new Promise((resolve, reject) => {
-            let jimpAny = Jimp as any;    
-            jimpAny.loadFont(type, (err: any, font: any) => {
-                if(err) {
-                    reject(err);
-                } else {
-                    resolve(font);
-                }
-            });
-        });
-    }
-    let image: any;
-    image = new jimpAny(width, height, 0xFF00FFFF, () => {});
-    
-    image.resize(width, height);
 
-    let data: Buffer = image.bitmap.data;
-    let frameNumber = Math.floor(time);
-    for(let i = 0; i < width * height; i++) {
-        let k = i * 4;
-        let seed = (frameNumber + 1) * i;
-        data[k] = seed % 256;
-        data[k + 1] = (seed * 67) % 256;
-        data[k + 2] = (seed * 679) % 256;
-        data[k + 3] = 255;
-    }
-
-    let imageColor = new jimpAny(width, 64, 0x000000AF, () => {});
-    image.composite(imageColor, 0, 0);
-
-    let path = "./node_modules/jimp/fonts/open-sans/open-sans-64-white/open-sans-64-white.fnt";
-    let font = await loadFont(path);
-    image.print(font, 0, 0, `frame time ${time.toFixed(2)}ms (${text})`, width);
-    
-    let jpegBuffer!: Buffer;
-    image.quality(75).getBuffer(Jimp.MIME_JPEG, (err: any, buffer: Buffer) => {
-        if(err) throw err;
-        jpegBuffer = buffer;
-    });
-
-    return jpegBuffer;
-}
-
-
-async function profile(name: string|null, code: () => Promise<void>): Promise<void> {
+async function profile(name: string | null, code: () => Promise<void>): Promise<void> {
     let time = +new Date();
     try {
         await code();
     } finally {
         time = +new Date() - time;
 
-        if(name) {
+        if (name) {
             console.log(`${name} took ${time}ms`);
         }
     }
@@ -524,8 +477,8 @@ export async function MuxVideo(params: {
     }[];
     baseMediaDecodeTimeInSeconds: number;
     // These are important, and if they aren't correct bad things will happen.
-    width: number;
-    height: number;
+    width?: number;
+    height?: number;
     // This is usually read from the NALs, but if this object is passed we don't parse the NALs and
     //  will use this information instead.
     forcedContainerInfo?: {
@@ -549,8 +502,8 @@ export async function MuxVideo(params: {
 
 async function InternalCreateVideo(params: {
     baseMediaDecodeTimeInSeconds: number;
-    width: number;
-    height: number;
+    width?: number;
+    height?: number;
     frames: {
         nal: Buffer;
         frameDurationInSeconds: number;
@@ -565,8 +518,8 @@ async function InternalCreateVideo(params: {
 }): Promise<Buffer> {
 
     // These are important, and if they aren't correct bad things will happen.
-    let {baseMediaDecodeTimeInSeconds,  width, height, frames, sps, pps } = params;
-    
+    let { baseMediaDecodeTimeInSeconds, width, height, frames, sps, pps } = params;
+
     let output!: Buffer;
     await profile(null, async () => {
         // Each frame has different duration, which could be completely unrelated to any fps, so just make a high and nice number.
@@ -616,10 +569,10 @@ async function InternalCreateVideo(params: {
 //  AND, we need to check process start time, in case a process is killed an another one is created with the same id in between our poll loop.
 
 /** buf in AVCC format */
-function getH264NALs(bufs: { buf: LargeBuffer, path: string }[], sps: SPS|undefined = undefined, pps: PPS|undefined = undefined): NALRawType[] {
+function getH264NALs(bufs: { buf: LargeBuffer, path: string }[], sps: SPS | undefined = undefined, pps: PPS | undefined = undefined): NALRawType[] {
     let nals: NALRawType[] = [];
 
-    for(let frameObj of bufs) {
+    for (let frameObj of bufs) {
         let frame = frameObj.buf;
         let path = frameObj.path;
         let obj = parseObject(frame, NALListRaw(4));

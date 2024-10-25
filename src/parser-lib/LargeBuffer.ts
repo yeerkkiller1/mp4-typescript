@@ -1,5 +1,4 @@
 import  * as fs from "fs";
-import { Buffer } from "buffer";
 
 import { textFromUInt32, readUInt64BE, textToUInt32, writeUInt64BE } from "../util/serialExtension";
 import { range, flatten } from "../util/misc";

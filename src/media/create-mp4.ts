@@ -6,24 +6,24 @@ import { writeObject, parseObject } from "../parser-lib/BinaryCoder";
 import { keyBy, sort } from "../util/misc";
 import { min, sum } from "../util/math";
 
-async function profile(name: string|null, code: () => Promise<void>): Promise<void> {
+async function profile(name: string | null, code: () => Promise<void>): Promise<void> {
     let time = +new Date();
     try {
         await code();
     } finally {
         time = +new Date() - time;
 
-        if(name !== null) {
+        if (name !== null) {
             console.log(`${name} took ${time}ms`);
         }
     }
 }
 
-export async function createVideo3 (
+export async function createVideo3(
     videoInfo: {
         timescale: number;
-        width: number;
-        height: number;
+        width?: number;
+        height?: number;
         baseMediaDecodeTimeInTimescale: number;
         addMoov: boolean;
         // nalObject.type === "slice"
@@ -40,7 +40,7 @@ export async function createVideo3 (
         forcedContainerInfo: {
             profile_idc: number;
             level_idc: number;
-        }|undefined;
+        } | undefined;
     },
 ): Promise<LargeBuffer> {
     let timescale = videoInfo.timescale;
@@ -53,25 +53,31 @@ export async function createVideo3 (
     let profile_idc!: number;
     let level_idc!: number;
 
-    if(forcedContainerInfo) {
+    let spsInfo = parseObject(new LargeBuffer([sps]), NALCreateNoSizeHeader(sps.length, undefined, undefined)).nalObject;
+    if (spsInfo.type !== "sps") {
+        throw new Error(`Passed sps buffer is not an sps. It was ${spsInfo.type}`);
+    }
+
+    if (forcedContainerInfo) {
         profile_idc = forcedContainerInfo.profile_idc;
         level_idc = forcedContainerInfo.level_idc;
     } else {
-        let spsInfo = parseObject(new LargeBuffer([sps]), NALCreateNoSizeHeader(sps.length, undefined, undefined)).nalObject;
-        if(spsInfo.type !== "sps") {
-            throw new Error(`Passed sps buffer is not an sps. It was ${spsInfo.type}`);
-        }
         profile_idc = spsInfo.nal.profile_idc;
         level_idc = spsInfo.nal.level_idc;
     }
+    if (!width || !height) {
+        // spsInfo.nal.pic_width_in_mbs_minus1
+        width = (spsInfo.nal.pic_width_in_mbs_minus1 + 1) * 16;
+        height = (spsInfo.nal.pic_height_in_map_units_minus1 + 1) * 16;
+    }
 
-    if(!sps) {
+    if (!sps) {
         throw new Error("sps required");
     }
-    if(!pps) {
+    if (!pps) {
         throw new Error("pps required");
     }
-   
+
     //let codec = `avc1.${profile_idc.toString(16)}00${level_idc.toString(16)}`;
 
     let samples!: SampleInfo[];
@@ -83,153 +89,153 @@ export async function createVideo3 (
     let defaultSampleDuration!: number;
 
     //await profile("createSamples", async () => {
-        frameInfos = frames.map((input, i) => {
-            // AVCC encoding, aka, length prefix
-            //  I think 4 bytes length prefix is just part of the standard for AVCC in mp4 web files? Oh well...
+    frameInfos = frames.map((input, i) => {
+        // AVCC encoding, aka, length prefix
+        //  I think 4 bytes length prefix is just part of the standard for AVCC in mp4 web files? Oh well...
 
-            let len = NALLength(4).write({
-                value: input.nal.length,
-                curBitSize: 0,
-                getSizeAfter() { return input.nal.length }
-            });
-
-            let buffer = new LargeBuffer([
-                len,
-                input.nal
-            ]);
-            
-            return {
-                buffer,
-                composition_offset: 0,
-                frameDurationInTimescale: input.frameDurationInTimescale
-            };
+        let len = NALLength(4).write({
+            value: input.nal.length,
+            curBitSize: 0,
+            getSizeAfter() { return input.nal.length }
         });
 
-        samples = frameInfos.map(x => ({
-            sample_size: x.buffer.getLength(),
-            sample_composition_time_offset: x.composition_offset,
-            sample_duration: undefined,
-            sample_flags: undefined,
-        }));
+        let buffer = new LargeBuffer([
+            len,
+            input.nal
+        ]);
 
-        let variableFrameRate = false;
-        defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameDurationInTimescale : 0;
-        for(let frameInfo of frameInfos) {
-            if(frameInfo.frameDurationInTimescale !== defaultSampleDuration) {
-                variableFrameRate = true;
-                break;
-            }
+        return {
+            buffer,
+            composition_offset: 0,
+            frameDurationInTimescale: input.frameDurationInTimescale
+        };
+    });
+
+    samples = frameInfos.map(x => ({
+        sample_size: x.buffer.getLength(),
+        sample_composition_time_offset: x.composition_offset,
+        sample_duration: undefined,
+        sample_flags: undefined,
+    }));
+
+    let variableFrameRate = false;
+    defaultSampleDuration = frameInfos.length > 0 ? frameInfos[0].frameDurationInTimescale : 0;
+    for (let frameInfo of frameInfos) {
+        if (frameInfo.frameDurationInTimescale !== defaultSampleDuration) {
+            variableFrameRate = true;
+            break;
         }
-        if(variableFrameRate) {
-            for(let i = 0; i < samples.length; i++) {
-                samples[i].sample_duration = frameInfos[i].frameDurationInTimescale;
-            }
+    }
+    if (variableFrameRate) {
+        for (let i = 0; i < samples.length; i++) {
+            samples[i].sample_duration = frameInfos[i].frameDurationInTimescale;
         }
+    }
     //});
 
     let boxes: TemplateToObject<typeof RootBox>["boxes"][0][] = [];
 
-    if(videoInfo.addMoov) {
+    if (videoInfo.addMoov) {
         //await profile("add moov", async () => {
-            let ftyp: O<typeof FtypBox> = {
-                header: {
-                    type: "ftyp"
-                },
-                type: "ftyp",
-                major_brand: "iso5",
-                minor_version: 1,
-                compatible_brands: [
-                    "avc1",
-                    "iso5",
-                    "dash"
-                ]
-            };
-            boxes.push(ftyp);
-
-            let moov = createMoov({
-                defaultFlags: nonKeyFrameSampleFlags,
-                timescale: timescale,
-                durationInTimescale: 0,
-                width: width,
-                height: height,
-                AVCProfileIndication: profile_idc,
-                profile_compatibility: 0,
-                AVCLevelIndication: level_idc,
-                sps: new LargeBuffer([sps]),
-                pps: new LargeBuffer([pps]),
-                defaultSampleDuration: defaultSampleDuration,
-            });
-            boxes.push(moov);
-        //});
-    }
-    
-    //await profile("other boxes", async () => {
-        let moof = createMoof({
-            sequenceNumber: 1,
-            baseMediaDecodeTimeInTimescale: baseMediaDecodeTimeInTimescale,
-            samples,
-            forcedFirstSampleFlags: keyFrameSampleFlags,
-            // Set defaultFlags in moov, not moof
-            //defaultSampleFlags: nonKeyFrameSampleFlags
-        });
-        
-        let mdat: O<typeof MdatBox> = {
+        let ftyp: O<typeof FtypBox> = {
             header: {
-                size: 0,
-                headerSize: 8,
-                type: "mdat"
+                type: "ftyp"
             },
-            type: "mdat",
-            bytes: new LargeBuffer(frameInfos.map(x => x.buffer))
-        };
-
-        let moofBuf = writeObject(MoofBox, moof);
-        let mdatBuf = writeObject(MdatBox, mdat);
-
-        let sidx = createSidx({
-            moofSize: moofBuf.getLength(),
-            mdatSize: mdatBuf.getLength(),
-            subsegmentDuration: sum(frameInfos.map(x => x.frameDurationInTimescale)),
-            timescale: timescale,
-            startsWithKeyFrame: true
-        });
-
-        let styp: O<typeof StypBox> = {
-            header: {
-                size: 24,
-                type: "styp",
-                headerSize: 8
-            },
-            type: "styp",
-            major_brand: "msdh",
-            minor_version: 0,
+            type: "ftyp",
+            major_brand: "iso5",
+            minor_version: 1,
             compatible_brands: [
-                "msdh",
-                "msix"
+                "avc1",
+                "iso5",
+                "dash"
             ]
         };
+        boxes.push(ftyp);
 
-        boxes.push(styp);
-        boxes.push(sidx);
-        boxes.push(moof);
-        boxes.push(mdat);
+        let moov = createMoov({
+            defaultFlags: nonKeyFrameSampleFlags,
+            timescale: timescale,
+            durationInTimescale: 0,
+            width: width,
+            height: height,
+            AVCProfileIndication: profile_idc,
+            profile_compatibility: 0,
+            AVCLevelIndication: level_idc,
+            sps: new LargeBuffer([sps]),
+            pps: new LargeBuffer([pps]),
+            defaultSampleDuration: defaultSampleDuration,
+        });
+        boxes.push(moov);
+        //});
+    }
+
+    //await profile("other boxes", async () => {
+    let moof = createMoof({
+        sequenceNumber: 1,
+        baseMediaDecodeTimeInTimescale: baseMediaDecodeTimeInTimescale,
+        samples,
+        forcedFirstSampleFlags: keyFrameSampleFlags,
+        // Set defaultFlags in moov, not moof
+        //defaultSampleFlags: nonKeyFrameSampleFlags
+    });
+
+    let mdat: O<typeof MdatBox> = {
+        header: {
+            size: 0,
+            headerSize: 8,
+            type: "mdat"
+        },
+        type: "mdat",
+        bytes: new LargeBuffer(frameInfos.map(x => x.buffer))
+    };
+
+    let moofBuf = writeObject(MoofBox, moof);
+    let mdatBuf = writeObject(MdatBox, mdat);
+
+    let sidx = createSidx({
+        moofSize: moofBuf.getLength(),
+        mdatSize: mdatBuf.getLength(),
+        subsegmentDuration: sum(frameInfos.map(x => x.frameDurationInTimescale)),
+        timescale: timescale,
+        startsWithKeyFrame: true
+    });
+
+    let styp: O<typeof StypBox> = {
+        header: {
+            size: 24,
+            type: "styp",
+            headerSize: 8
+        },
+        type: "styp",
+        major_brand: "msdh",
+        minor_version: 0,
+        compatible_brands: [
+            "msdh",
+            "msix"
+        ]
+    };
+
+    boxes.push(styp);
+    boxes.push(sidx);
+    boxes.push(moof);
+    boxes.push(mdat);
     //});
 
-    
-    let outputBuffers: {buf: LargeBuffer, type: string}[] = [];
+
+    let outputBuffers: { buf: LargeBuffer, type: string }[] = [];
     //await profile("final write", async () => {
-        for(let box of boxes) {
-            let buf = writeObject(RootBox, { boxes: [box] });
-            outputBuffers.push({
-                buf,
-                type: box.type
-            });
-        }
+    for (let box of boxes) {
+        let buf = writeObject(RootBox, { boxes: [box] });
+        outputBuffers.push({
+            buf,
+            type: box.type
+        });
+    }
     ///});
 
     let finalBuffer!: LargeBuffer;
     //await profile("final concat", async () => {
-        finalBuffer = new LargeBuffer(outputBuffers.map(x => x.buf));
+    finalBuffer = new LargeBuffer(outputBuffers.map(x => x.buf));
     //});
 
     /*
@@ -272,7 +278,7 @@ const nonKeyFrameSampleFlags: SampleFlags = {
 };
 
 type O<T extends SerialObject> = TemplateToObject<T>;
-type SampleFlags = O<{x: typeof sample_flags}>["x"];
+type SampleFlags = O<{ x: typeof sample_flags }>["x"];
 
 function createMoov(
     d: {
@@ -297,7 +303,7 @@ function createMoov(
         //d.sps.num_units_in_tick = d.frameTimeInTimescale;
     }
     */
-    
+
     return {
         header: {
             type: "moov"
@@ -429,7 +435,7 @@ function createMoov(
                                 flags: 0,
                                 pre_defined: 0,
                                 handler_type: "vide",
-                                reserved: [0,0,0],
+                                reserved: [0, 0, 0],
                                 name: "VideoHandler"
                             },
                             {
@@ -717,10 +723,10 @@ function createSidx(
 }
 
 export type SampleInfo = {
-    sample_duration: number|undefined;
-    sample_size: number|undefined;
-    sample_flags: SampleFlags|undefined;
-    sample_composition_time_offset: number|undefined;
+    sample_duration: number | undefined;
+    sample_size: number | undefined;
+    sample_flags: SampleFlags | undefined;
+    sample_composition_time_offset: number | undefined;
 }
 function createMoof(
     d: {
@@ -739,16 +745,16 @@ function createMoof(
     let sample_flagss = d.samples.filter(x => x.sample_flags !== undefined).length;
     let sample_composition_time_offsets = d.samples.filter(x => x.sample_composition_time_offset !== undefined).length;
 
-    if(sample_durations !== 0 && sample_durations !== d.samples.length) {
+    if (sample_durations !== 0 && sample_durations !== d.samples.length) {
         throw new Error(`Some samples have sample_duration, others don't. This is invalid, samples must be consistent.`);
     }
-    if(sample_sizes !== 0 && sample_sizes !== d.samples.length) {
+    if (sample_sizes !== 0 && sample_sizes !== d.samples.length) {
         throw new Error(`Some samples have sample_size, others don't. This is invalid, samples must be consistent.`);
     }
-    if(sample_flagss !== 0 && sample_flagss !== d.samples.length) {
+    if (sample_flagss !== 0 && sample_flagss !== d.samples.length) {
         throw new Error(`Some samples have sample_flags, others don't. This is invalid, samples must be consistent. Even if there is a forceFirstSampleFlags, either ever sample needs flags, or none should have it.`);
     }
-    if(sample_composition_time_offsets !== 0 && sample_composition_time_offsets !== d.samples.length) {
+    if (sample_composition_time_offsets !== 0 && sample_composition_time_offsets !== d.samples.length) {
         throw new Error(`Some samples have sample_composition_time_offset, others don't. This is invalid, samples must be consistent.`);
     }
 
@@ -837,7 +843,7 @@ function createMoof(
                             sample_count: d.samples.length,
                             values: ({
                                 data_offset: moofSize + 8,
-                                first_sample_flags : d.forcedFirstSampleFlags ? d.forcedFirstSampleFlags : undefined
+                                first_sample_flags: d.forcedFirstSampleFlags ? d.forcedFirstSampleFlags : undefined
                             }),
                             sample_values: d.samples
                         }
@@ -908,7 +914,7 @@ function getSamples(NALs: NALRawType[], frameTimeInTimescale: number) {
 
     let samples = frames.map((input, i) => {
         let obj = input.nalObject;
-        if(obj.type !== "slice") throw new Error("impossible");
+        if (obj.type !== "slice") throw new Error("impossible");
         let buffer = writeObject(NALListRaw(4), { NALs: [input] });
         //let header = obj.nal.slice_header;
 
@@ -923,7 +929,7 @@ function getSamples(NALs: NALRawType[], frameTimeInTimescale: number) {
     });
 
     let negativeOffset = min(samples.map(x => x.composition_offset));
-    if(negativeOffset < 0) {
+    if (negativeOffset < 0) {
         samples.forEach(sample => {
             sample.composition_offset -= negativeOffset;
         });

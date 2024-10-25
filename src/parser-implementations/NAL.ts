@@ -28,7 +28,7 @@ export function ConvertAnnexBToAVCC(buf: LargeBuffer): LargeBuffer {
     let nakedNals = ConvertAnnexBToRawBuffers(buf);
 
     let nalsAndLengths: LargeBuffer[] = [];
-    for(let nakedNal of nakedNals) {
+    for (let nakedNal of nakedNals) {
         let size = nakedNal.getLength();
 
         let b1 = ~~(size / Math.pow(2, 24));
@@ -47,23 +47,23 @@ export function ConvertAnnexBToAVCC(buf: LargeBuffer): LargeBuffer {
 }
 
 export function ConvertAnnexBToRawBuffers(buf: LargeBuffer): LargeBuffer[] {
-    let annexB3BytesPositions: {pos: number, size: number}[] = [];
-    
+    let annexB3BytesPositions: { pos: number, size: number }[] = [];
+
 
     let len = buf.getLength();
     let zeroCount = 0;
 
-    
+
     // Wait! Variable length start codes!? Dammit, we need to handle this...
-    for(let i = 0; i < len; i++) {
+    for (let i = 0; i < len; i++) {
         let byte = buf.readUInt8(i);
-        if((zeroCount === 3 || zeroCount === 2) && byte === 0x01) {
-            annexB3BytesPositions.push({pos: i - zeroCount, size: zeroCount + 1});
+        if ((zeroCount === 3 || zeroCount === 2) && byte === 0x01) {
+            annexB3BytesPositions.push({ pos: i - zeroCount, size: zeroCount + 1 });
         }
-        
-        if(byte === 0) {
+
+        if (byte === 0) {
             zeroCount++;
-            if(zeroCount >= 4) {
+            if (zeroCount >= 4) {
                 throw new Error(`Too many zero bytes encountered? These should have been escaped`);
             }
         } else {
@@ -73,7 +73,7 @@ export function ConvertAnnexBToRawBuffers(buf: LargeBuffer): LargeBuffer[] {
 
     let nakedNals: LargeBuffer[] = [];
 
-    for(let i = 0; i < annexB3BytesPositions.length; i++) {
+    for (let i = 0; i < annexB3BytesPositions.length; i++) {
         let pos = annexB3BytesPositions[i];
         let nextStartPos = (i + 1) < annexB3BytesPositions.length ? annexB3BytesPositions[i + 1].pos : len;
 
@@ -103,19 +103,19 @@ export function NALLength(sizeByteLength = 4): SerialObjectPrimitiveLength<{}> {
             let contentSize = context.getSizeAfter();
             let buf = Buffer.alloc(sizeByteLength);
             buf.writeUIntBE(contentSize, 0, sizeByteLength);
-            return new LargeBuffer([ buf ]);
+            return new LargeBuffer([buf]);
         }
     };
 }
 
 function emulationPreventionParse(rawBytes: number[]): number[] {
     let finalBytes: number[] = [];
-    for(let i = 0; i < rawBytes.length; i++) {
+    for (let i = 0; i < rawBytes.length; i++) {
         // If we read 0x000003, skip the 3
-        if(i > 2 && rawBytes[i] === 3 && rawBytes[i - 1] === 0 && rawBytes[i - 2] === 0) {
+        if (i > 2 && rawBytes[i] === 3 && rawBytes[i - 1] === 0 && rawBytes[i - 2] === 0) {
             //console.log(`EmulationPrevention did something at byte ${i}`);
             let nextByte = rawBytes[i + 1];
-            if(nextByte !== 0 && nextByte !== 1 && nextByte !== 2 && nextByte !== 3 && nextByte !== undefined) {
+            if (nextByte !== 0 && nextByte !== 1 && nextByte !== 2 && nextByte !== 3 && nextByte !== undefined) {
                 throw new Error(`EmulationPreventation byte with no purpose. It was used to escape: ${nextByte}`);
             }
             continue;
@@ -140,10 +140,10 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
             let rawBuffer = buffer.slice(pPos.v, pPos.v + totalLength);
 
             let rawBytes: number[] = [];
-            for(let i = 0; i < totalLength; i++) {
+            for (let i = 0; i < totalLength; i++) {
                 rawBytes.push(rawBuffer.readUInt8(i));
             }
-            
+
             let finalBytes = emulationPreventionParse(rawBytes);
 
             pPos.v += totalLength;
@@ -166,9 +166,9 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
 
             let bitPos = 0;
             let ranges: WriteContextRange[] = [];
-            for(let b of buf.getInternalBufferList()) {
+            for (let b of buf.getInternalBufferList()) {
                 let bufRanges = getAllBufferWriteContextRanges(b);
-                for(let range of bufRanges) {
+                for (let range of bufRanges) {
                     let offset = ~~(bitPos / 8);
                     range.start += offset;
                     range.end += offset;
@@ -179,7 +179,7 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
             }
 
             let len = buf.getLength();
-            for(let i = 0; i < len; i++) {
+            for (let i = 0; i < len; i++) {
                 let byte = buf.readUInt8(i);
                 realBytes.push(byte);
             }
@@ -193,7 +193,7 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
             };
             let offsetList: OffsetEntry[] = [];
             let lastPos = 0;
-            for(let range of ranges) {
+            for (let range of ranges) {
                 let offset = range.start - lastPos;
                 lastPos = range.start;
                 offsetList.push({
@@ -207,16 +207,16 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
             let offsetIndex = 0;
 
             let finalBytes: number[] = [];
-            for(let i = 0; i < realBytes.length; i++) {
-                while(offsetIndex < offsetList.length && offsetList[offsetIndex].originalPos <= i) {
+            for (let i = 0; i < realBytes.length; i++) {
+                while (offsetIndex < offsetList.length && offsetList[offsetIndex].originalPos <= i) {
                     offsetIndex++;
                 }
 
-                if(i > 2 && finalBytes[finalBytes.length - 2] === 0 && finalBytes[finalBytes.length - 1] === 0 && (realBytes[i] & 0b11111100) === 0) {
+                if (i > 2 && finalBytes[finalBytes.length - 2] === 0 && finalBytes[finalBytes.length - 1] === 0 && (realBytes[i] & 0b11111100) === 0) {
                     //console.log(`EmulationPrevention activated something at byte ${i}`);
                     finalBytes.push(0x03);
 
-                    if(offsetIndex < offsetList.length) {
+                    if (offsetIndex < offsetList.length) {
                         offsetList[offsetIndex].offsetToLast++;
                     }
                 }
@@ -227,7 +227,7 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
             let finalBuf = new LargeBuffer([Buffer.from(finalBytes)]);
 
             let curPos = 0;
-            for(let offset of offsetList) {
+            for (let offset of offsetList) {
                 curPos += offset.offsetToLast;
 
                 let range: WriteContextRange = {
@@ -248,12 +248,12 @@ const RbspTrailingPrimitive: SerialObjectPrimitive<void> = {
     [HandlesBitOffsets]: true,
     read(context) {
         let stopOneBit = readBit(context);
-        if(stopOneBit !== 1) {
+        if (stopOneBit !== 1) {
             throw new Error(`rbsp trailing bits did not start with 1. This means the data is corrupted.`);
         }
-        while(context.bitOffset !== 0) {
+        while (context.bitOffset !== 0) {
             let alignment_zero_bit = readBit(context);
-            if(alignment_zero_bit !== 0) {
+            if (alignment_zero_bit !== 0) {
                 console.error(`rbsp alignment bit was not 0. This means the data is corrupted.`);
                 break;
             }
@@ -269,21 +269,21 @@ const RbspTrailingPrimitive: SerialObjectPrimitive<void> = {
 const IsMoreDataLeft: SerialObjectPrimitive<boolean> = {
     [HandlesBitOffsets]: true,
     read(context) {
-        if(context.pPos.v < (context.end - 1)) {
+        if (context.pPos.v < (context.end - 1)) {
             return false;
         }
 
         let bitOffset = 7;
         let bits = byteToBits(context.buffer.readUInt8(context.end - 1));
-        while(bits[bitOffset] === 0) {
+        while (bits[bitOffset] === 0) {
             bitOffset--;
-            if(bitOffset < 0) {
+            if (bitOffset < 0) {
                 throw new Error(`Couldn't find rbsp trailing bit after 1 byte.`);
             }
         }
 
         let trailingBit = bits[bitOffset];
-        if(trailingBit !== 1) {
+        if (trailingBit !== 1) {
             throw new Error(`Trailing bit is not 1`);
         }
 
@@ -295,8 +295,8 @@ const IsMoreDataLeft: SerialObjectPrimitive<boolean> = {
 };
 
 export function InvariantCheck<T>(trueVariant: (context: T) => boolean): (context: T) => SerialObject {
-    return function(context: T): SerialObject {
-        if(!trueVariant(context)) {
+    return function (context: T): SerialObject {
+        if (!trueVariant(context)) {
             throw new Error(`Invariant failed. ${trueVariant.toString()}`);
         }
         return {};
@@ -318,7 +318,7 @@ const hrd_parameters = ChooseInfer()({
     bit_rate_scale: IntBitN(4),
     cpb_size_scale: IntBitN(4),
 })({
-    [ErasedKey]: ({cpb_cnt_minus1}) => range(0, cpb_cnt_minus1 + 1).map(() => ({
+    [ErasedKey]: ({ cpb_cnt_minus1 }) => range(0, cpb_cnt_minus1 + 1).map(() => ({
         bit_rate_value_minus1: UExpGolomb,
         cpb_size_value_minus1: UExpGolomb,
         cbr_flag: BitPrimitive,
@@ -335,14 +335,14 @@ const hrd_parameters = ChooseInfer()({
     dpb_output_delay_length_minus1: IntBitN(5),
     time_offset_length: IntBitN(5),
 })
-();
+    ();
 
 
 // https://github.com/iizukanao/node-rtsp-rtmp-server/blob/master/h264.coffee
 //  The spec does the worst possible job explaining this flag. It uses it in hundreds of places, and never explicitly defines it. wtf.
 function getChromaArrayType(sps: TemplateToObject<typeof NAL_SPS>): number {
-    if("chroma_format_idc" in sps) {
-        if(sps.chroma_format_idc === 3 && sps.separate_colour_plane_flags === 1) {
+    if ("chroma_format_idc" in sps) {
+        if (sps.chroma_format_idc === 3 && sps.separate_colour_plane_flags === 1) {
             return 0;
         }
         return sps.chroma_format_idc;
@@ -363,12 +363,12 @@ export const NAL_SPS = ChooseInfer()({
     constraint_set5_flag: BitPrimitive,
     reserved_zero_2bits: BitPrimitiveN(2),
 })({
-    reserved_zero_2bits_check: InvariantCheck(({reserved_zero_2bits}) => reserved_zero_2bits[0] === 0 && reserved_zero_2bits[1] === 0),
+    reserved_zero_2bits_check: InvariantCheck(({ reserved_zero_2bits }) => reserved_zero_2bits[0] === 0 && reserved_zero_2bits[1] === 0),
     level_idc: IntBitN(8),
     seq_parameter_set_id: UExpGolomb,
 })({
-    [ErasedKey]: (({profile_idc}) => {
-        if(
+    [ErasedKey]: (({ profile_idc }) => {
+        if (
             profile_idc == 100 || profile_idc == 110 ||
             profile_idc == 122 || profile_idc == 244 || profile_idc == 44 ||
             profile_idc == 83 || profile_idc == 86 || profile_idc == 118 ||
@@ -378,7 +378,7 @@ export const NAL_SPS = ChooseInfer()({
             return ChooseInfer()({
                 chroma_format_idc: UExpGolomb,
             })({
-                [ErasedKey]: ({chroma_format_idc}) => {
+                [ErasedKey]: ({ chroma_format_idc }) => {
                     return chroma_format_idc === 3 ? { separate_colour_plane_flags: BitPrimitive } : {};
                 },
                 bit_depth_luma_minus8: UExpGolomb,
@@ -386,9 +386,9 @@ export const NAL_SPS = ChooseInfer()({
                 qpprime_y_zero_transform_bypass_flag: BitPrimitive,
                 seq_scaling_matrix_present_flag: BitPrimitive,
             })({
-                seq_scaling_matrix_present_flag_check: InvariantCheck(({seq_scaling_matrix_present_flag}) => seq_scaling_matrix_present_flag === 0)
+                seq_scaling_matrix_present_flag_check: InvariantCheck(({ seq_scaling_matrix_present_flag }) => seq_scaling_matrix_present_flag === 0)
             })
-            ();
+                ();
         }
 
         return ChooseInfer()({ [ErasedKey]: () => ({}) })();
@@ -397,121 +397,144 @@ export const NAL_SPS = ChooseInfer()({
     log2_max_frame_num_minus4: UExpGolomb,
     pic_order_cnt_type: UExpGolomb,
 })
-({
-    [ErasedKey3]: ({pic_order_cnt_type}) => {
-        if(pic_order_cnt_type === 1) {
-            throw new Error(`pic_order_cnt_type === 1 not handled`);
-        }
-        if(pic_order_cnt_type === 0) {
-            return {
-                log2_max_pic_order_cnt_lsb_minus4: UExpGolomb,
-            };
-        }
-        return {};
-    },
-})({
-    max_num_ref_frames: UExpGolomb,
-    gaps_in_frame_num_value_allowed_flag: BitPrimitive,
-    pic_width_in_mbs_minus1: UExpGolomb,
-    pic_height_in_map_units_minus1: UExpGolomb,
-    frame_mbs_only_flag: BitPrimitive,
-})({
-    frame_mbs_only_flag_check: InvariantCheck(({frame_mbs_only_flag}) => frame_mbs_only_flag === 1),
-    direct_8x8_inference_flag: BitPrimitive,
-    frame_cropping_flag: BitPrimitive,
-})({
-    [ErasedKey4]: ({frame_cropping_flag}) => {
-        if(frame_cropping_flag === 1) {
-            return {
-                frame_crop_left_offset: UExpGolomb,
-                frame_crop_right_offset: UExpGolomb,
-                frame_crop_top_offset: UExpGolomb,
-                frame_crop_bottom_offset: UExpGolomb,
+    ({
+        [ErasedKey3]: ({ pic_order_cnt_type }) => {
+            if (pic_order_cnt_type === 1) {
+                throw new Error(`pic_order_cnt_type === 1 not handled`);
             }
-        }
-        return {};
-    },
-    vui_parameters_present_flag: BitPrimitive,
-})({
-    vui_parameters_present_flag: BitPrimitive
-})({
-    vui_parameters_check: InvariantCheck(({vui_parameters_present_flag}) => vui_parameters_present_flag === 1),
-})
-// vui_parameters
-({
-    aspect_ratio_info_present_flag: BitPrimitive,
-})({
-    [ErasedKey0]: ({aspect_ratio_info_present_flag}) => {
-        if(!aspect_ratio_info_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
-        return ChooseInfer()({
-            // Hmm... I don't know if this is being parsed correctly. 128? That seems wrong...
-            //  It should really be 15.
-            aspect_ratio_idc: IntBitN(8),
-        })({
-            aspect_ratio_idc_check: InvariantCheck(({aspect_ratio_idc}) => aspect_ratio_idc !== 255)
-        })
-        ();
-    },
-})({
-    //test: BitPrimitive,
-    overscan_info_present_flag: BitPrimitive,
-})({
-    overscan_info_present_flag_check: InvariantCheck(({overscan_info_present_flag}) => overscan_info_present_flag === 0),
-    video_signal_type_present_flag: BitPrimitive,
-})({
-    [ErasedKey1]: ({video_signal_type_present_flag}) => {
-        if(!video_signal_type_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
-        return ChooseInfer()({
-            video_format: BitPrimitiveN(3),
-            video_full_range_flag: BitPrimitive,
-            colour_description_present_flag: BitPrimitive,
-        })({
-            [ErasedKey0]: ({colour_description_present_flag}) => colour_description_present_flag ? {
-                colour_primaries: UInt8,
-                transfer_characteristics: UInt8,
-                matrix_coefficients: UInt8,
-            } : {}
-        })
-        ();
-    },
-    chroma_loc_info_present_flag: BitPrimitive,
-})({
-    chroma_loc_info_present_flag_check: InvariantCheck(({chroma_loc_info_present_flag}) => chroma_loc_info_present_flag === 0),
-    timing_info_present_flag: BitPrimitive,
-})({
-    [ErasedKey2]: ({timing_info_present_flag}) => {
-        if(!timing_info_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
-        return {
-            num_units_in_tick: IntBitN(32),
-            time_scale: IntBitN(32), 
-            fixed_frame_rate_flag: BitPrimitive,
-        };
-    },
-    nal_hrd_parameters_present_flag: BitPrimitive,
-})({
-    data0: ({nal_hrd_parameters_present_flag}) => {
-        if(!nal_hrd_parameters_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
-        return { hrd_parameters };
-    },
-    nal_hrd_parameters_present_flag_check: InvariantCheck(({nal_hrd_parameters_present_flag}) => nal_hrd_parameters_present_flag === 0),
-    vcl_hrd_parameters_present_flag: BitPrimitive,
-})({
-    vcl_hrd_parameters_present_flag_check: InvariantCheck(({vcl_hrd_parameters_present_flag}) => vcl_hrd_parameters_present_flag === 0),
-    pic_struct_present_flag: BitPrimitive,
-    bitstream_restriction_flag: BitPrimitive,
-})({
-    [ErasedKey5]: ({bitstream_restriction_flag}) => bitstream_restriction_flag ? {
-        motion_vectors_over_pic_boundaries_flag: BitPrimitive,
-        max_bytes_per_pic_denom: UExpGolomb,
-        max_bits_per_mb_denom: UExpGolomb,
-        log2_max_mv_length_horizontal: UExpGolomb,
-        log2_max_mv_length_vertical: UExpGolomb,
-        max_num_reorder_frames: UExpGolomb,
-        max_dec_frame_buffering: UExpGolomb,
-    } : {},
-    trailing: RbspTrailingPrimitive,
-})
-();
+            if (pic_order_cnt_type === 0) {
+                return {
+                    log2_max_pic_order_cnt_lsb_minus4: UExpGolomb,
+                };
+            }
+            return {};
+        },
+    })({
+        max_num_ref_frames: UExpGolomb,
+        gaps_in_frame_num_value_allowed_flag: BitPrimitive,
+        pic_width_in_mbs_minus1: UExpGolomb,
+        pic_height_in_map_units_minus1: UExpGolomb,
+        frame_mbs_only_flag: BitPrimitive,
+    })({
+        frame_mbs_only_flag_check: InvariantCheck(({ frame_mbs_only_flag }) => frame_mbs_only_flag === 1),
+        direct_8x8_inference_flag: BitPrimitive,
+        frame_cropping_flag: BitPrimitive,
+    })({
+        [ErasedKey4]: ({ frame_cropping_flag }) => {
+            if (frame_cropping_flag === 1) {
+                return {
+                    frame_crop_left_offset: UExpGolomb,
+                    frame_crop_right_offset: UExpGolomb,
+                    frame_crop_top_offset: UExpGolomb,
+                    frame_crop_bottom_offset: UExpGolomb,
+                }
+            }
+            return {};
+        },
+        vui_parameters_present_flag: BitPrimitive,
+    })({
+        vui_parameters_present_flag: BitPrimitive
+    })({
+        vui_parameters_check: InvariantCheck(({ vui_parameters_present_flag }) => vui_parameters_present_flag === 1),
+    })
+    // vui_parameters
+    ({
+        aspect_ratio_info_present_flag: BitPrimitive,
+    })({
+        [ErasedKey0]: ({ aspect_ratio_info_present_flag }) => {
+            if (!aspect_ratio_info_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
+            return ChooseInfer()({
+                // Hmm... I don't know if this is being parsed correctly. 128? That seems wrong...
+                //  It should really be 15.
+                aspect_ratio_idc: IntBitN(8),
+            })({
+                aspect_ratio_idc_check: InvariantCheck(({ aspect_ratio_idc }) => aspect_ratio_idc !== 255)
+            })
+                ();
+        },
+    })({
+        //test: BitPrimitive,
+        overscan_info_present_flag: BitPrimitive,
+    })({
+        overscan_info_present_flag_check: InvariantCheck(({ overscan_info_present_flag }) => overscan_info_present_flag === 0),
+        video_signal_type_present_flag: BitPrimitive,
+    })({
+        [ErasedKey1]: ({ video_signal_type_present_flag }) => {
+            if (!video_signal_type_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
+            return ChooseInfer()({
+                video_format: BitPrimitiveN(3),
+                video_full_range_flag: BitPrimitive,
+                colour_description_present_flag: BitPrimitive,
+            })({
+                [ErasedKey0]: ({ colour_description_present_flag }) => colour_description_present_flag ? {
+                    colour_primaries: UInt8,
+                    transfer_characteristics: UInt8,
+                    matrix_coefficients: UInt8,
+                } : {}
+            })
+                ();
+        },
+        chroma_loc_info_present_flag: BitPrimitive,
+    })({
+        chroma_loc_info_present_flag_check: InvariantCheck(({ chroma_loc_info_present_flag }) => chroma_loc_info_present_flag === 0),
+        timing_info_present_flag: BitPrimitive,
+    })({
+        [ErasedKey2]: ({ timing_info_present_flag }) => {
+            if (!timing_info_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
+            return {
+                num_units_in_tick: IntBitN(32),
+                time_scale: IntBitN(32),
+                fixed_frame_rate_flag: BitPrimitive,
+            };
+        },
+        nal_hrd_parameters_present_flag: BitPrimitive,
+    })({
+        data0: ({ nal_hrd_parameters_present_flag }) => {
+            if (!nal_hrd_parameters_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
+
+            return ChooseInfer()({
+                cpb_cnt_minus1: UExpGolomb,
+                bit_rate_scale: BitPrimitiveN(4),
+                cpb_size_scale: BitPrimitiveN(4),
+            })({
+                [ErasedKey]: ({ cpb_cnt_minus1 }) => {
+                    const cpb_entries = Array.from({ length: cpb_cnt_minus1 + 1 }, () => ChooseInfer()({
+                        bit_rate_value_minus1: UExpGolomb,
+                        cpb_size_value_minus1: UExpGolomb,
+                        cbr_flag: BitPrimitive,
+                    })());
+                    return { cpb_entries };
+                }
+            })({
+                [ErasedKey]: () => ({
+                    initial_cpb_removal_delay_length_minus1: BitPrimitiveN(5),
+                    cpb_removal_delay_length_minus1: BitPrimitiveN(5),
+                    dpb_output_delay_length_minus1: BitPrimitiveN(5),
+                    time_offset_length: BitPrimitiveN(5),
+                })
+            });
+        },
+        // nal_hrd_parameters_present_flag_check: InvariantCheck(({ nal_hrd_parameters_present_flag }) => nal_hrd_parameters_present_flag === 0),
+
+
+        vcl_hrd_parameters_present_flag: BitPrimitive,
+    })({
+        vcl_hrd_parameters_present_flag_check: InvariantCheck(({ vcl_hrd_parameters_present_flag }) => vcl_hrd_parameters_present_flag === 0),
+        pic_struct_present_flag: BitPrimitive,
+        bitstream_restriction_flag: BitPrimitive,
+    })({
+        [ErasedKey5]: ({ bitstream_restriction_flag }) => bitstream_restriction_flag ? {
+            motion_vectors_over_pic_boundaries_flag: BitPrimitive,
+            max_bytes_per_pic_denom: UExpGolomb,
+            max_bits_per_mb_denom: UExpGolomb,
+            log2_max_mv_length_horizontal: UExpGolomb,
+            log2_max_mv_length_vertical: UExpGolomb,
+            max_num_reorder_frames: UExpGolomb,
+            max_dec_frame_buffering: UExpGolomb,
+        } : {},
+        trailing: RbspTrailingPrimitive,
+    })
+    ();
 // #endregion
 
 // #region nal_unit_type = 8
@@ -523,7 +546,7 @@ export const NAL_PPS = ChooseInfer()({
     bottom_field_pic_order_in_frame_present_flag: BitPrimitive,
     num_slice_groups_minus1: UExpGolomb,
 })({
-    num_slice_groups_minus1_check: InvariantCheck(({num_slice_groups_minus1}) => num_slice_groups_minus1 === 0),
+    num_slice_groups_minus1_check: InvariantCheck(({ num_slice_groups_minus1 }) => num_slice_groups_minus1 === 0),
     slice_group_map_type: CodeOnlyValue(-1),
     slice_group_change_rate_minus1: CodeOnlyValue(-1),
     num_ref_idx_l0_default_active_minus1: UExpGolomb,
@@ -536,23 +559,23 @@ export const NAL_PPS = ChooseInfer()({
     deblocking_filter_control_present_flag: BitPrimitive,
     constrained_intra_pred_flag: BitPrimitive,
     redundant_pic_cnt_present_flag: BitPrimitive,
-    
+
     isDone: IsMoreDataLeft,
 })({
-    [ErasedKey]: ({isDone}) => {
-        if(isDone) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
+    [ErasedKey]: ({ isDone }) => {
+        if (isDone) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
         return ChooseInfer()({
             transform_8x8_mode_flag: BitPrimitive,
             pic_scaling_matrix_present_flag: BitPrimitive,
         })({
-            pic_scaling_matrix_present_flag_check: InvariantCheck(({pic_scaling_matrix_present_flag}) => pic_scaling_matrix_present_flag === 0),
+            pic_scaling_matrix_present_flag_check: InvariantCheck(({ pic_scaling_matrix_present_flag }) => pic_scaling_matrix_present_flag === 0),
             second_chroma_qp_index_offset: SExpGolomb,
         })
-        ();
+            ();
     },
     RbspTrailingPrimitive,
 })
-();
+    ();
 // #endregion
 
 
@@ -561,11 +584,11 @@ const FunnyNumberType: SerialObjectPrimitive<number> = {
         let { buffer, pPos } = context;
         let value = 0;
 
-        while(true) {
+        while (true) {
             let byte = buffer.readUInt8(pPos.v);
             pPos.v++;
             value += byte;
-            if(byte !== 0xFF) break;
+            if (byte !== 0xFF) break;
         }
         return value;
     },
@@ -574,9 +597,9 @@ const FunnyNumberType: SerialObjectPrimitive<number> = {
         let pos = 0;
         let buf = Buffer.alloc(size);
 
-        
+
         let val = context.value;
-        while(val >= 0xFF) {
+        while (val >= 0xFF) {
             val -= 0xFF;
             buf[pos++] = 0xFF;
         }
@@ -591,39 +614,39 @@ export const NAL_SEI = ChooseInfer()({
     payloadType: FunnyNumberType,
     payloadSize: FunnyNumberType,
 })({
-    payloadTypeCheck: InvariantCheck(({payloadType}) => payloadType === 5),
+    payloadTypeCheck: InvariantCheck(({ payloadType }) => payloadType === 5),
     uuid_iso_iec_11578_0: UInt32,
     uuid_iso_iec_11578_1: UInt32,
     uuid_iso_iec_11578_2: UInt32,
     uuid_iso_iec_11578_3: UInt32,
-    data: ({payloadSize}) => DebugString(payloadSize - 16),
+    data: ({ payloadSize }) => DebugString(payloadSize - 16),
     trailing: RbspTrailingPrimitive,
 })
-();
+    ();
 // #endregion
 
-type SliceTypeNum = 0|1|2|3|4|5|6|7|8|9;
-type SliceTypeStr = "P"|"B"|"I"|"SP"|"SI";
+type SliceTypeNum = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type SliceTypeStr = "P" | "B" | "I" | "SP" | "SI";
 function getSliceType(type: number): SliceTypeStr {
-    if(type === 0) {
+    if (type === 0) {
         return "P";
-    } else if(type === 1) {
+    } else if (type === 1) {
         return "B";
-    } else if(type === 2) {
+    } else if (type === 2) {
         return "I";
-    } else if(type === 3) {
+    } else if (type === 3) {
         return "SP";
-    } else if(type === 4) {
+    } else if (type === 4) {
         return "SI";
-    } else if(type === 5) {
+    } else if (type === 5) {
         return "P";
-    } else if(type === 6) {
+    } else if (type === 6) {
         return "B";
-    } else if(type === 7) {
+    } else if (type === 7) {
         return "I";
-    } else if(type === 8) {
+    } else if (type === 8) {
         return "SP";
-    } else if(type === 9) {
+    } else if (type === 9) {
         return "SI";
     } else {
         throw new Error(`Invalid slice type ${type}`);
@@ -640,18 +663,18 @@ function ref_pic_list_modification(slice_type: number) {
             let list = ChooseInfer()({
                 ref_pic_list_modification_flag_l0: BitPrimitive,
             })({
-                list: ({ref_pic_list_modification_flag_l0}) => {
-                    if(ref_pic_list_modification_flag_l0) {
+                list: ({ ref_pic_list_modification_flag_l0 }) => {
+                    if (ref_pic_list_modification_flag_l0) {
                         return Iterate(() => {
                             return ChooseInfer()({
                                 modification_of_pic_nums_idc: UExpGolomb,
                             })({
-                                [ErasedKey]: ({modification_of_pic_nums_idc}) => {
-                                    if(modification_of_pic_nums_idc === 0 || modification_of_pic_nums_idc === 1) {
+                                [ErasedKey]: ({ modification_of_pic_nums_idc }) => {
+                                    if (modification_of_pic_nums_idc === 0 || modification_of_pic_nums_idc === 1) {
                                         return {
                                             abs_diff_pic_num_minus1: UExpGolomb,
                                         };
-                                    } else if(modification_of_pic_nums_idc === 2) {
+                                    } else if (modification_of_pic_nums_idc === 2) {
                                         return {
                                             long_term_pic_num: UExpGolomb,
                                         };
@@ -659,7 +682,7 @@ function ref_pic_list_modification(slice_type: number) {
                                     return {};
                                 }
                             })
-                            ();
+                                ();
                         })(
                             last => !last || last.modification_of_pic_nums_idc !== 3
                         );
@@ -667,12 +690,12 @@ function ref_pic_list_modification(slice_type: number) {
                     return [];
                 }
             })
-            ();
+                ();
 
             let sliceTypeStr = getSliceType(slice_type);
 
-            if(sliceTypeStr !== "I" && sliceTypeStr !== "SI") {
-                if(sliceTypeStr === "B") {
+            if (sliceTypeStr !== "I" && sliceTypeStr !== "SI") {
+                if (sliceTypeStr === "B") {
                     return {
                         list0: list,
                         list1: list,
@@ -687,52 +710,52 @@ function ref_pic_list_modification(slice_type: number) {
             return ChooseInfer()({ [ErasedKey]: () => ({}) })();
         }
     })
-    ();
+        ();
 }
 
 function dec_ref_pic_marking(nal_unit_type: number) {
-    if(IdrPicFlag(nal_unit_type)) {
+    if (IdrPicFlag(nal_unit_type)) {
         return ChooseInfer()({
             no_output_of_prior_pics_flag: BitPrimitive,
             long_term_reference_flag: BitPrimitive,
         })
-        ();
+            ();
     } else {
         return ChooseInfer()({
             adaptive_ref_pic_marking_mode_flag: BitPrimitive,
         })({
-            [ErasedKey]: ({adaptive_ref_pic_marking_mode_flag}) => {
-                if(adaptive_ref_pic_marking_mode_flag) {
+            [ErasedKey]: ({ adaptive_ref_pic_marking_mode_flag }) => {
+                if (adaptive_ref_pic_marking_mode_flag) {
                     return Iterate(() => {
                         return ChooseInfer()({
                             memory_management_control_operation: UExpGolomb,
                         })({
-                            [ErasedKey]: ({memory_management_control_operation}) => {
-                                if(memory_management_control_operation === 1 || memory_management_control_operation === 3) {
+                            [ErasedKey]: ({ memory_management_control_operation }) => {
+                                if (memory_management_control_operation === 1 || memory_management_control_operation === 3) {
                                     return {
                                         difference_of_pic_nums_minus1: UExpGolomb,
                                     };
                                 }
                                 return {};
                             },
-                            [ErasedKey0]: ({memory_management_control_operation}) => {
-                                if(memory_management_control_operation === 2) {
+                            [ErasedKey0]: ({ memory_management_control_operation }) => {
+                                if (memory_management_control_operation === 2) {
                                     return {
                                         long_term_pic_num: UExpGolomb,
                                     };
                                 }
                                 return {};
                             },
-                            [ErasedKey1]: ({memory_management_control_operation}) => {
-                                if(memory_management_control_operation === 3 || memory_management_control_operation === 6) {
+                            [ErasedKey1]: ({ memory_management_control_operation }) => {
+                                if (memory_management_control_operation === 3 || memory_management_control_operation === 6) {
                                     return {
                                         long_term_frame_idx: UExpGolomb,
                                     };
                                 }
                                 return {};
                             },
-                            [ErasedKey2]: ({memory_management_control_operation}) => {
-                                if(memory_management_control_operation === 4) {
+                            [ErasedKey2]: ({ memory_management_control_operation }) => {
+                                if (memory_management_control_operation === 4) {
                                     return {
                                         max_long_term_frame_idx_plus1: UExpGolomb,
                                     };
@@ -740,25 +763,25 @@ function dec_ref_pic_marking(nal_unit_type: number) {
                                 return {};
                             },
                         })
-                        ();
+                            ();
                     })(value => !value || value.memory_management_control_operation !== 0);
                 }
                 return {};
             }
         })
-        ();
+            ();
     }
 }
 
-function pred_weight_table(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SPS>, pps: TemplateToObject<typeof NAL_PPS>, nal_ref_idc: number, num_ref_idx_l0_active_minus1: number, num_ref_idx_l1_active_minus1: number|undefined, slice_type: number) {
+function pred_weight_table(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SPS>, pps: TemplateToObject<typeof NAL_PPS>, nal_ref_idc: number, num_ref_idx_l0_active_minus1: number, num_ref_idx_l1_active_minus1: number | undefined, slice_type: number) {
     let chromaArrayType = getChromaArrayType(sps);
     let sliceTypeStr = getSliceType(slice_type);
 
     let arrayEntry = ChooseInfer()({
         luma_weight_flag: BitPrimitive,
     })({
-        [ErasedKey]: ({luma_weight_flag}) => {
-            if(luma_weight_flag) {
+        [ErasedKey]: ({ luma_weight_flag }) => {
+            if (luma_weight_flag) {
                 return {
                     luma_weight: SExpGolomb,
                     luma_offset: SExpGolomb,
@@ -767,12 +790,12 @@ function pred_weight_table(nal_unit_type: number, sps: TemplateToObject<typeof N
             return {};
         },
         [ErasedKey0]: () => {
-            if(chromaArrayType !== 0) {
+            if (chromaArrayType !== 0) {
                 return ChooseInfer()({
                     chroma_weight_flag: BitPrimitive,
                 })({
-                    [ErasedKey]: ({chroma_weight_flag}) => {
-                        if(chroma_weight_flag) {
+                    [ErasedKey]: ({ chroma_weight_flag }) => {
+                        if (chroma_weight_flag) {
                             return {
                                 chroma_weight: [SExpGolomb, SExpGolomb],
                                 chroma_offset: [SExpGolomb, SExpGolomb],
@@ -781,18 +804,18 @@ function pred_weight_table(nal_unit_type: number, sps: TemplateToObject<typeof N
                         return {};
                     }
                 })
-                ();
+                    ();
             }
             return {};
         },
     })
-    ();
+        ();
 
     return ChooseInfer()({
         luma_log2_weight_denom: UExpGolomb,
     })({
         [ErasedKey]: () => {
-            if(chromaArrayType != 0) {
+            if (chromaArrayType != 0) {
                 return {
                     chroma_log2_weight_denom: UExpGolomb
                 };
@@ -803,8 +826,8 @@ function pred_weight_table(nal_unit_type: number, sps: TemplateToObject<typeof N
         luma_chroma_values0: repeat(arrayEntry, num_ref_idx_l0_active_minus1 + 1),
 
         [ErasedKey1]: () => {
-            if(sliceTypeStr === "B") {
-                if(num_ref_idx_l1_active_minus1 === undefined) {
+            if (sliceTypeStr === "B") {
+                if (num_ref_idx_l1_active_minus1 === undefined) {
                     throw new Error(`num_ref_idx_l1_active_minus1 is required, but undefined`);
                 }
                 return {
@@ -814,14 +837,14 @@ function pred_weight_table(nal_unit_type: number, sps: TemplateToObject<typeof N
             return {};
         },
     })
-    ();
+        ();
 }
 
 function slice_header(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SPS>, pps: TemplateToObject<typeof NAL_PPS>, nal_ref_idc: number) {
     let frame_num = IntBitN(sps.log2_max_frame_num_minus4 + 4);
     let pic_order_cnt_type_bits = 0;
-    if(sps.pic_order_cnt_type === 0) {
-        if(sps.log2_max_pic_order_cnt_lsb_minus4 === undefined) {
+    if (sps.pic_order_cnt_type === 0) {
+        if (sps.log2_max_pic_order_cnt_lsb_minus4 === undefined) {
             throw new Error(`pic_order_cnt_type === 0 should mean log2_max_pic_order_cnt_lsb_minus4 is defined`);
         }
         pic_order_cnt_type_bits = sps.log2_max_pic_order_cnt_lsb_minus4 + 4;
@@ -832,17 +855,17 @@ function slice_header(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SP
         first_mb_in_slice: UExpGolomb,
         slice_type: UExpGolomb,
     })({
-        sliceTypeStr: ({slice_type}) => CodeOnlyValue(getSliceType(slice_type)),
+        sliceTypeStr: ({ slice_type }) => CodeOnlyValue(getSliceType(slice_type)),
         pic_parameter_set_id: UExpGolomb,
         frame_num,
         [ErasedKey0]: () => {
-            if(!sps.frame_mbs_only_flag) {
+            if (!sps.frame_mbs_only_flag) {
                 return ChooseInfer()({
                     field_pic_flag: BitPrimitive
                 })({
-                    [ErasedKey]: ({field_pic_flag}) => field_pic_flag ? { bottom_field_flag: BitPrimitive } : {}
+                    [ErasedKey]: ({ field_pic_flag }) => field_pic_flag ? { bottom_field_flag: BitPrimitive } : {}
                 })
-                ();
+                    ();
             }
             return ChooseInfer()({ [ErasedKey]: () => ({}) })();
         },
@@ -850,15 +873,15 @@ function slice_header(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SP
         idr_pic_id: () => nal_unit_type === 5 ? UExpGolomb : CodeOnlyValue(0),
     })({
         [ErasedKey]: (obj) => {
-            if(sps.pic_order_cnt_type === 1) {
+            if (sps.pic_order_cnt_type === 1) {
                 throw new Error(`sps.pic_order_cnt_type 1 not implemented`);
             }
-            if(sps.pic_order_cnt_type === 0) {
+            if (sps.pic_order_cnt_type === 0) {
                 return ChooseInfer()({
                     log2_max_pic_order_cnt_lsb_minus4: CodeOnlyValue(sps.log2_max_pic_order_cnt_lsb_minus4),
                     pic_order_cnt_lsb,
                     [ErasedKey]: () => {
-                        if(pps.bottom_field_pic_order_in_frame_present_flag && !("field_pic_flag" in obj && obj.field_pic_flag)) {
+                        if (pps.bottom_field_pic_order_in_frame_present_flag && !("field_pic_flag" in obj && obj.field_pic_flag)) {
                             return {
                                 delta_pic_order_cnt_bottom: SExpGolomb
                             }
@@ -866,32 +889,32 @@ function slice_header(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SP
                         return {};
                     }
                 })
-                ();
+                    ();
             }
             return ChooseInfer()({ pic_order_cnt_lsb })();
         },
         [ErasedKey1]: () => {
-            if(pps.redundant_pic_cnt_present_flag) {
+            if (pps.redundant_pic_cnt_present_flag) {
                 return {
                     redundant_pic_cnt: UExpGolomb,
                 };
             }
             return {};
         },
-        [ErasedKey2]: ({slice_type}) => {
-            if(getSliceType(slice_type) === "B") {
+        [ErasedKey2]: ({ slice_type }) => {
+            if (getSliceType(slice_type) === "B") {
                 return {
                     direct_spatial_mv_pred_flag: BitPrimitive,
                 };
             }
             return {};
         },
-        [ErasedKey3]: ({slice_type}) => {
-            if(getSliceType(slice_type) === "P" || getSliceType(slice_type) === "SP" || getSliceType(slice_type) === "B") {
+        [ErasedKey3]: ({ slice_type }) => {
+            if (getSliceType(slice_type) === "P" || getSliceType(slice_type) === "SP" || getSliceType(slice_type) === "B") {
                 return ChooseInfer()({
                     num_ref_idx_active_override_flag: BitPrimitive,
                 })({
-                    [ErasedKey]: ({num_ref_idx_active_override_flag}) => {
+                    [ErasedKey]: ({ num_ref_idx_active_override_flag }) => {
                         return Object.assign({
                             num_ref_idx_l0_active_minus1: UExpGolomb,
                         }, getSliceType(slice_type) === "B" ? {
@@ -899,7 +922,7 @@ function slice_header(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SP
                         } : {});
                     },
                 })
-                ();
+                    ();
             }
             return ChooseInfer()({ [ErasedKey]: () => ({}) })();
         },
@@ -999,9 +1022,9 @@ function slice_header(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SP
         }
         */
     })({
-        
+
     })
-    ();
+        ();
 }
 
 function slice_data(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SPS>, pps: TemplateToObject<typeof NAL_PPS>, nal_ref_idc: number) {
@@ -1009,7 +1032,7 @@ function slice_data(nal_unit_type: number, sps: TemplateToObject<typeof NAL_SPS>
         align: AlignmentBits,
         remaining: RemainingDataRaw,
     })
-    ();
+        ();
 }
 
 // #region nal_unit_type = 1, 5
@@ -1020,13 +1043,13 @@ function NAL_SLICE_LAYER_WITHOUT_PARTITIONING(nal_unit_type: number, sps: Templa
         slice_data: slice_data(nal_unit_type, sps, pps, nal_ref_idc),
         // rbsp_slice_trailing_bits()
     })
-    ();
+        ();
 }
 // #endregion
 
 export type NALTemplate = ReturnType<typeof NALCreate>;
 export type NALType = TemplateToObject<NALTemplate>;
-export function NALCreate(sizeByteLength: number, sps: TemplateToObject<typeof NAL_SPS>|undefined, pps: TemplateToObject<typeof NAL_PPS>|undefined) {
+export function NALCreate(sizeByteLength: number, sps: TemplateToObject<typeof NAL_SPS> | undefined, pps: TemplateToObject<typeof NAL_PPS> | undefined) {
     return ChooseInfer()({
         //PrintStart: CallOnReadPos(pos => console.log(`Started NAL at pos ${pos}`)),
         NALLength: NALLength(sizeByteLength)
@@ -1038,29 +1061,29 @@ export function NALCreate(sizeByteLength: number, sps: TemplateToObject<typeof N
             nal_unit_type: 5,
         }),
     })({
-        forbidden_zero_bit_check: ({bitHeader0}) => {
-            if(bitHeader0.forbidden_zero_bit !== 0) {
+        forbidden_zero_bit_check: ({ bitHeader0 }) => {
+            if (bitHeader0.forbidden_zero_bit !== 0) {
                 throw new Error(`forbidden_zero_bit is not equal to 0. The data is probably corrupt.`);
             }
             return {};
         },
-        extensionFlag: ({bitHeader0}) => (
+        extensionFlag: ({ bitHeader0 }) => (
             bitHeader0.nal_unit_type === 14
-            || bitHeader0.nal_unit_type === 20
-            || bitHeader0.nal_unit_type === 21
-            ? PeekPrimitive(UInt8)
-            : VoidParse
+                || bitHeader0.nal_unit_type === 20
+                || bitHeader0.nal_unit_type === 21
+                ? PeekPrimitive(UInt8)
+                : VoidParse
         )
     })({
-        extension: ({extensionFlag, bitHeader0}) => {
-            if(extensionFlag === undefined) {
+        extension: ({ extensionFlag, bitHeader0 }) => {
+            if (extensionFlag === undefined) {
                 return {
                     nalUnitHeaderBytes: CodeOnlyValue(1)
                 };
             }
 
-            if(extensionFlag & 0x80) {
-                if(bitHeader0.nal_unit_type === 21) {
+            if (extensionFlag & 0x80) {
+                if (bitHeader0.nal_unit_type === 21) {
                     // nal_unit_header_3davc_extension
                     // nalUnitHeaderBytes = 3
 
@@ -1120,32 +1143,32 @@ export function NALCreate(sizeByteLength: number, sps: TemplateToObject<typeof N
             }
         },
     })({
-        nalObject: ({NALLength, bitHeader0, extension}) => {
+        nalObject: ({ NALLength, bitHeader0, extension }) => {
             let payloadLength = NALLength.size - extension.nalUnitHeaderBytes - sizeByteLength;
-            
-            if(bitHeader0.nal_unit_type === 7) {
-                return {type: CodeOnlyValue("sps" as "sps"), nal: EmulationPreventionWrapper(payloadLength, NAL_SPS)};
-            } else if(bitHeader0.nal_unit_type === 8) {
-                return {type: CodeOnlyValue("pps" as "pps"), nal: EmulationPreventionWrapper(payloadLength, NAL_PPS)};
-            } else if(bitHeader0.nal_unit_type === 6) {
-                return {type: CodeOnlyValue("sei" as "sei"), nal: EmulationPreventionWrapper(payloadLength, NAL_SEI)};
-            } else if(bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
-                if(sps === undefined) {
+
+            if (bitHeader0.nal_unit_type === 7) {
+                return { type: CodeOnlyValue("sps" as "sps"), nal: EmulationPreventionWrapper(payloadLength, NAL_SPS) };
+            } else if (bitHeader0.nal_unit_type === 8) {
+                return { type: CodeOnlyValue("pps" as "pps"), nal: EmulationPreventionWrapper(payloadLength, NAL_PPS) };
+            } else if (bitHeader0.nal_unit_type === 6) {
+                return { type: CodeOnlyValue("sei" as "sei"), nal: EmulationPreventionWrapper(payloadLength, NAL_SEI) };
+            } else if (bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
+                if (sps === undefined) {
                     throw new Error(`sps is required when we encounter nal_unit_type === ${bitHeader0.nal_unit_type}`);
                 }
-                if(pps === undefined) {
+                if (pps === undefined) {
                     throw new Error(`pps is required when we encounter nal_unit_type === ${bitHeader0.nal_unit_type}`);
                 }
-                return {type: CodeOnlyValue("slice" as "slice"), nal: EmulationPreventionWrapper(payloadLength, NAL_SLICE_LAYER_WITHOUT_PARTITIONING(bitHeader0.nal_unit_type, sps, pps, bitHeader0.nal_ref_idc))};
+                return { type: CodeOnlyValue("slice" as "slice"), nal: EmulationPreventionWrapper(payloadLength, NAL_SLICE_LAYER_WITHOUT_PARTITIONING(bitHeader0.nal_unit_type, sps, pps, bitHeader0.nal_ref_idc)) };
             } else {
-                return {type: CodeOnlyValue("unknown" as "unknown"), nal: EmulationPreventionWrapper(payloadLength, { all: ArrayInfinite(UInt8) })};
+                return { type: CodeOnlyValue("unknown" as "unknown"), nal: EmulationPreventionWrapper(payloadLength, { all: ArrayInfinite(UInt8) }) };
             }
         }
     })
-    ();
+        ();
 }
 
-export function NALCreateNoSizeHeader(byteSize: number, sps: TemplateToObject<typeof NAL_SPS>|undefined, pps: TemplateToObject<typeof NAL_PPS>|undefined) {
+export function NALCreateNoSizeHeader(byteSize: number, sps: TemplateToObject<typeof NAL_SPS> | undefined, pps: TemplateToObject<typeof NAL_PPS> | undefined) {
     return ChooseInfer()({
         //data: ({NALLength}) => RawData(NALLength.size - 4)
         bitHeader0: bitMapping({
@@ -1154,29 +1177,29 @@ export function NALCreateNoSizeHeader(byteSize: number, sps: TemplateToObject<ty
             nal_unit_type: 5,
         }),
     })({
-        forbidden_zero_bit_check: ({bitHeader0}) => {
-            if(bitHeader0.forbidden_zero_bit !== 0) {
+        forbidden_zero_bit_check: ({ bitHeader0 }) => {
+            if (bitHeader0.forbidden_zero_bit !== 0) {
                 throw new Error(`forbidden_zero_bit is not equal to 0. The data is probably corrupt.`);
             }
             return {};
         },
-        extensionFlag: ({bitHeader0}) => (
+        extensionFlag: ({ bitHeader0 }) => (
             bitHeader0.nal_unit_type === 14
-            || bitHeader0.nal_unit_type === 20
-            || bitHeader0.nal_unit_type === 21
-            ? PeekPrimitive(UInt8)
-            : VoidParse
+                || bitHeader0.nal_unit_type === 20
+                || bitHeader0.nal_unit_type === 21
+                ? PeekPrimitive(UInt8)
+                : VoidParse
         )
     })({
-        extension: ({extensionFlag, bitHeader0}) => {
-            if(extensionFlag === undefined) {
+        extension: ({ extensionFlag, bitHeader0 }) => {
+            if (extensionFlag === undefined) {
                 return {
                     nalUnitHeaderBytes: CodeOnlyValue(1)
                 };
             }
 
-            if(extensionFlag & 0x80) {
-                if(bitHeader0.nal_unit_type === 21) {
+            if (extensionFlag & 0x80) {
+                if (bitHeader0.nal_unit_type === 21) {
                     // nal_unit_header_3davc_extension
                     // nalUnitHeaderBytes = 3
 
@@ -1236,49 +1259,49 @@ export function NALCreateNoSizeHeader(byteSize: number, sps: TemplateToObject<ty
             }
         },
     })({
-        nalObject: ({bitHeader0, extension}) => {
+        nalObject: ({ bitHeader0, extension }) => {
             let payloadLength = byteSize - extension.nalUnitHeaderBytes;
-            
-            if(bitHeader0.nal_unit_type === 7) {
-                return {type: CodeOnlyValue("sps" as "sps"), nal: EmulationPreventionWrapper(payloadLength, NAL_SPS)};
-            } else if(bitHeader0.nal_unit_type === 8) {
-                return {type: CodeOnlyValue("pps" as "pps"), nal: EmulationPreventionWrapper(payloadLength, NAL_PPS)};
-            } else if(bitHeader0.nal_unit_type === 6) {
-                return {type: CodeOnlyValue("sei" as "sei"), nal: EmulationPreventionWrapper(payloadLength, NAL_SEI)};
-            } else if(bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
-                if(sps === undefined) {
+
+            if (bitHeader0.nal_unit_type === 7) {
+                return { type: CodeOnlyValue("sps" as "sps"), nal: EmulationPreventionWrapper(payloadLength, NAL_SPS) };
+            } else if (bitHeader0.nal_unit_type === 8) {
+                return { type: CodeOnlyValue("pps" as "pps"), nal: EmulationPreventionWrapper(payloadLength, NAL_PPS) };
+            } else if (bitHeader0.nal_unit_type === 6) {
+                return { type: CodeOnlyValue("sei" as "sei"), nal: EmulationPreventionWrapper(payloadLength, NAL_SEI) };
+            } else if (bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
+                if (sps === undefined) {
                     throw new Error(`sps is required when we encounter nal_unit_type === ${bitHeader0.nal_unit_type}`);
                 }
-                if(pps === undefined) {
+                if (pps === undefined) {
                     throw new Error(`pps is required when we encounter nal_unit_type === ${bitHeader0.nal_unit_type}`);
                 }
-                return {type: CodeOnlyValue("slice" as "slice"), nal: EmulationPreventionWrapper(payloadLength, NAL_SLICE_LAYER_WITHOUT_PARTITIONING(bitHeader0.nal_unit_type, sps, pps, bitHeader0.nal_ref_idc))};
+                return { type: CodeOnlyValue("slice" as "slice"), nal: EmulationPreventionWrapper(payloadLength, NAL_SLICE_LAYER_WITHOUT_PARTITIONING(bitHeader0.nal_unit_type, sps, pps, bitHeader0.nal_ref_idc)) };
             } else {
-                return {type: CodeOnlyValue("unknown" as "unknown"), nal: EmulationPreventionWrapper(payloadLength, { all: ArrayInfinite(UInt8) })};
+                return { type: CodeOnlyValue("unknown" as "unknown"), nal: EmulationPreventionWrapper(payloadLength, { all: ArrayInfinite(UInt8) }) };
             }
         }
     })
-    ();
+        ();
 }
 
-export function NALList(sizeByteLength: number, sps: TemplateToObject<typeof NAL_SPS>|undefined, pps: TemplateToObject<typeof NAL_PPS>|undefined) {
+export function NALList(sizeByteLength: number, sps: TemplateToObject<typeof NAL_SPS> | undefined, pps: TemplateToObject<typeof NAL_PPS> | undefined) {
     return {
         NALs: (
             Iterate<() => NALTemplate>(
                 () => NALCreate(sizeByteLength, sps, pps)
             )(
                 last => {
-                    if(last === undefined) return true;
-                    if(last.nalObject.type === "sps") {
-                        if(sps !== undefined) {
+                    if (last === undefined) return true;
+                    if (last.nalObject.type === "sps") {
+                        if (sps !== undefined) {
                             //console.warn(`When parsing the NALList we found an SPS. However, we already had an sps. Either we found two, or we found one, and you also passed one. We will use the latest sps we find.`);
                         }
                         sps = last.nalObject.nal;
                         //console.log("found sps");
                     }
 
-                    if(last.nalObject.type === "pps") {
-                        if(pps !== undefined) {
+                    if (last.nalObject.type === "pps") {
+                        if (pps !== undefined) {
                             //console.warn(`When parsing the NALList we found an PPS. However, we already had an pps. Either we found two, or we found one, and you also passed one. We will use the latest pps we find.`);
                         }
                         pps = last.nalObject.nal;
@@ -1306,29 +1329,29 @@ export function NALCreateRaw(sizeByteLength: number) {
             nal_unit_type: 5,
         }),
     })({
-        forbidden_zero_bit_check: ({bitHeader0}) => {
-            if(bitHeader0.forbidden_zero_bit !== 0) {
+        forbidden_zero_bit_check: ({ bitHeader0 }) => {
+            if (bitHeader0.forbidden_zero_bit !== 0) {
                 throw new Error(`forbidden_zero_bit is not equal to 0. The data is probably corrupt.`);
             }
             return {};
         },
-        extensionFlag: ({bitHeader0}) => (
+        extensionFlag: ({ bitHeader0 }) => (
             bitHeader0.nal_unit_type === 14
-            || bitHeader0.nal_unit_type === 20
-            || bitHeader0.nal_unit_type === 21
-            ? PeekPrimitive(UInt8)
-            : VoidParse
+                || bitHeader0.nal_unit_type === 20
+                || bitHeader0.nal_unit_type === 21
+                ? PeekPrimitive(UInt8)
+                : VoidParse
         )
     })({
-        extension: ({extensionFlag, bitHeader0}) => {
-            if(extensionFlag === undefined) {
+        extension: ({ extensionFlag, bitHeader0 }) => {
+            if (extensionFlag === undefined) {
                 return {
                     nalUnitHeaderBytes: CodeOnlyValue(1)
                 };
             }
 
-            if(extensionFlag & 0x80) {
-                if(bitHeader0.nal_unit_type === 21) {
+            if (extensionFlag & 0x80) {
+                if (bitHeader0.nal_unit_type === 21) {
                     // nal_unit_header_3davc_extension
                     // nalUnitHeaderBytes = 3
 
@@ -1388,23 +1411,23 @@ export function NALCreateRaw(sizeByteLength: number) {
             }
         },
     })({
-        nalObject: ({NALLength, bitHeader0, extension}) => {
+        nalObject: ({ NALLength, bitHeader0, extension }) => {
             let payloadLength = NALLength.size - extension.nalUnitHeaderBytes - sizeByteLength;
-            
-            if(bitHeader0.nal_unit_type === 7) {
-                return {type: CodeOnlyValue("sps" as "sps"), nal: RawData(payloadLength)};
-            } else if(bitHeader0.nal_unit_type === 8) {
-                return {type: CodeOnlyValue("pps" as "pps"), nal: RawData(payloadLength)};
-            } else if(bitHeader0.nal_unit_type === 6) {
-                return {type: CodeOnlyValue("sei" as "sei"), nal: RawData(payloadLength)};
-            } else if(bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
-                return {type: CodeOnlyValue("slice" as "slice"), nal: RawData(payloadLength)};
+
+            if (bitHeader0.nal_unit_type === 7) {
+                return { type: CodeOnlyValue("sps" as "sps"), nal: RawData(payloadLength) };
+            } else if (bitHeader0.nal_unit_type === 8) {
+                return { type: CodeOnlyValue("pps" as "pps"), nal: RawData(payloadLength) };
+            } else if (bitHeader0.nal_unit_type === 6) {
+                return { type: CodeOnlyValue("sei" as "sei"), nal: RawData(payloadLength) };
+            } else if (bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
+                return { type: CodeOnlyValue("slice" as "slice"), nal: RawData(payloadLength) };
             }
 
-            return {type: CodeOnlyValue("unknown" as "unknown"), nal: RawData(payloadLength)};
+            return { type: CodeOnlyValue("unknown" as "unknown"), nal: RawData(payloadLength) };
         }
     })
-    ();
+        ();
 }
 
 export function NALListRaw(sizeByteLength: number) {
@@ -1425,29 +1448,29 @@ export function NALCreateRawNoSizeHeader(lengthBytes: number) {
             nal_unit_type: 5,
         }),
     })({
-        forbidden_zero_bit_check: ({bitHeader0}) => {
-            if(bitHeader0.forbidden_zero_bit !== 0) {
+        forbidden_zero_bit_check: ({ bitHeader0 }) => {
+            if (bitHeader0.forbidden_zero_bit !== 0) {
                 throw new Error(`forbidden_zero_bit is not equal to 0. The data is probably corrupt.`);
             }
             return {};
         },
-        extensionFlag: ({bitHeader0}) => (
+        extensionFlag: ({ bitHeader0 }) => (
             bitHeader0.nal_unit_type === 14
-            || bitHeader0.nal_unit_type === 20
-            || bitHeader0.nal_unit_type === 21
-            ? PeekPrimitive(UInt8)
-            : VoidParse
+                || bitHeader0.nal_unit_type === 20
+                || bitHeader0.nal_unit_type === 21
+                ? PeekPrimitive(UInt8)
+                : VoidParse
         )
     })({
-        extension: ({extensionFlag, bitHeader0}) => {
-            if(extensionFlag === undefined) {
+        extension: ({ extensionFlag, bitHeader0 }) => {
+            if (extensionFlag === undefined) {
                 return {
                     nalUnitHeaderBytes: CodeOnlyValue(1)
                 };
             }
 
-            if(extensionFlag & 0x80) {
-                if(bitHeader0.nal_unit_type === 21) {
+            if (extensionFlag & 0x80) {
+                if (bitHeader0.nal_unit_type === 21) {
                     // nal_unit_header_3davc_extension
                     // nalUnitHeaderBytes = 3
 
@@ -1507,23 +1530,23 @@ export function NALCreateRawNoSizeHeader(lengthBytes: number) {
             }
         },
     })({
-        nalObject: ({bitHeader0, extension}) => {
+        nalObject: ({ bitHeader0, extension }) => {
             let payloadLength = lengthBytes - extension.nalUnitHeaderBytes;
-            
-            if(bitHeader0.nal_unit_type === 7) {
-                return {type: CodeOnlyValue("sps" as "sps"), nal: RawData(payloadLength)};
-            } else if(bitHeader0.nal_unit_type === 8) {
-                return {type: CodeOnlyValue("pps" as "pps"), nal: RawData(payloadLength)};
-            } else if(bitHeader0.nal_unit_type === 6) {
-                return {type: CodeOnlyValue("sei" as "sei"), nal: RawData(payloadLength)};
-            } else if(bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
-                return {type: CodeOnlyValue("slice" as "slice"), nal: RawData(payloadLength)};
+
+            if (bitHeader0.nal_unit_type === 7) {
+                return { type: CodeOnlyValue("sps" as "sps"), nal: RawData(payloadLength) };
+            } else if (bitHeader0.nal_unit_type === 8) {
+                return { type: CodeOnlyValue("pps" as "pps"), nal: RawData(payloadLength) };
+            } else if (bitHeader0.nal_unit_type === 6) {
+                return { type: CodeOnlyValue("sei" as "sei"), nal: RawData(payloadLength) };
+            } else if (bitHeader0.nal_unit_type === 1 || bitHeader0.nal_unit_type === 5) {
+                return { type: CodeOnlyValue("slice" as "slice"), nal: RawData(payloadLength) };
             }
 
-            return {type: CodeOnlyValue("unknown" as "unknown"), nal: RawData(payloadLength)};
+            return { type: CodeOnlyValue("unknown" as "unknown"), nal: RawData(payloadLength) };
         }
     })
-    ();
+        ();
 }
 
 
@@ -1542,21 +1565,54 @@ export function ParseNalHeaderByte(b: number) {
         nal_unit_type: 5,
     }).read(context);
 
-    if(output.forbidden_zero_bit !== 0) {
+    if (output.forbidden_zero_bit !== 0) {
         throw new Error(`Nal header byte is not a nal header byte. ${b}`);
     }
 
-    if(output.nal_unit_type === 7) {
-        return "sps";
-    } else if(output.nal_unit_type === 8) {
-        return "pps";
-    } else if(output.nal_unit_type === 6) {
-        return "sei";
-    } else if(output.nal_unit_type === 1 || output.nal_unit_type === 5) {
-        return "slice";
+    if (output.nal_unit_type === 7) {
+        return "sps" as const;
+    } else if (output.nal_unit_type === 8) {
+        return "pps" as const;
+    } else if (output.nal_unit_type === 6) {
+        return "sei" as const;
+    } else if (output.nal_unit_type === 1 || output.nal_unit_type === 5) {
+        return "slice" as const;
     }
 
-    return "unknown";
+    return "unknown" as const;
+}
+export function ParseNalHeaderByte2(b: number) {
+    let context: ReadContext = {
+        bitOffset: 0,
+        debugKey: "",
+        end: 1,
+        endBits: 8,
+        pPos: { v: 0 },
+        buffer: new LargeBuffer([Buffer.from([b])]),
+    };
+    let output = bitMapping({
+        forbidden_zero_bit: 1,
+        nal_ref_idc: 2,
+        nal_unit_type: 5,
+    }).read(context);
+
+    if (output.forbidden_zero_bit !== 0) {
+        throw new Error(`Nal header byte is not a nal header byte. ${b}`);
+    }
+
+    if (output.nal_unit_type === 7) {
+        return "sps" as const;
+    } else if (output.nal_unit_type === 8) {
+        return "pps" as const;
+    } else if (output.nal_unit_type === 6) {
+        return "sei" as const;
+    } else if (output.nal_unit_type === 5) {
+        return "keyframe" as const;
+    } else if (output.nal_unit_type === 1) {
+        return "frame" as const;
+    }
+
+    return "unknown" as const;
 }
 
 
@@ -1568,7 +1624,7 @@ export function ParseNalInfo(rawNal: Buffer): {
     sliceType: SliceTypeStr
 } {
     let nal = parseObject(new LargeBuffer([rawNal]), NALCreateRawNoSizeHeader(rawNal.length), true);
-    if(nal.nalObject.type !== "slice") {
+    if (nal.nalObject.type !== "slice") {
         return {
             type: nal.nalObject.type
         };
@@ -1592,7 +1648,7 @@ export function ParseNalInfo(rawNal: Buffer): {
         first_mb_in_slice: UExpGolomb,
         slice_type: UExpGolomb,
     }, true);
-    
+
     return {
         type: "slice" as "slice",
         sliceType: getSliceType(obj.slice_type)
