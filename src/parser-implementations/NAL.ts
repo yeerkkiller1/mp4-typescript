@@ -313,30 +313,6 @@ export const parserTest = {
 };
 
 
-const hrd_parameters = ChooseInfer()({
-    cpb_cnt_minus1: UExpGolomb,
-    bit_rate_scale: IntBitN(4),
-    cpb_size_scale: IntBitN(4),
-})({
-    [ErasedKey]: ({ cpb_cnt_minus1 }) => range(0, cpb_cnt_minus1 + 1).map(() => ({
-        bit_rate_value_minus1: UExpGolomb,
-        cpb_size_value_minus1: UExpGolomb,
-        cbr_flag: BitPrimitive,
-    })),
-    /*
-    [ErasedKey]: ({cpb_cnt_minus1}) => range(0, cpb_cnt_minus1 + 1).map(() => ({
-        bit_rate_value_minus1: UExpGolomb,
-        cpb_size_value_minus1: UExpGolomb,
-        cbr_flag: BitPrimitive,
-    })),
-    */
-    initial_cpb_removal_delay_length_minus1: IntBitN(5),
-    cpb_removal_delay_length_minus1: IntBitN(5),
-    dpb_output_delay_length_minus1: IntBitN(5),
-    time_offset_length: IntBitN(5),
-})
-    ();
-
 
 // https://github.com/iizukanao/node-rtsp-rtmp-server/blob/master/h264.coffee
 //  The spec does the worst possible job explaining this flag. It uses it in hundreds of places, and never explicitly defines it. wtf.
@@ -490,33 +466,39 @@ export const NAL_SPS = ChooseInfer()({
         nal_hrd_parameters_present_flag: BitPrimitive,
     })({
         data0: ({ nal_hrd_parameters_present_flag }) => {
+            // IMPORTANT! I BELIEVE this parsing is wrong. We are leaving extra bits. BUT... the trailing
+            //  fields don't seem to matter, and we don't need to re-encode it, so... I guess it's fine?
+            //  (We really just parse SPS for profile, level, and pic_width, etc).
             if (!nal_hrd_parameters_present_flag) return ChooseInfer()({ [ErasedKey]: () => ({}) })();
-
-            return ChooseInfer()({
+            const hrd_parameters = ChooseInfer()({
                 cpb_cnt_minus1: UExpGolomb,
-                bit_rate_scale: BitPrimitiveN(4),
-                cpb_size_scale: BitPrimitiveN(4),
+                bit_rate_scale: IntBitN(4),
+                cpb_size_scale: IntBitN(4),
             })({
                 [ErasedKey]: ({ cpb_cnt_minus1 }) => {
-                    const cpb_entries = Array.from({ length: cpb_cnt_minus1 + 1 }, () => ChooseInfer()({
+                    return range(0, cpb_cnt_minus1 + 1).map(() => ({
                         bit_rate_value_minus1: UExpGolomb,
                         cpb_size_value_minus1: UExpGolomb,
                         cbr_flag: BitPrimitive,
-                    })());
-                    return { cpb_entries };
-                }
-            })({
-                [ErasedKey]: () => ({
-                    initial_cpb_removal_delay_length_minus1: BitPrimitiveN(5),
-                    cpb_removal_delay_length_minus1: BitPrimitiveN(5),
-                    dpb_output_delay_length_minus1: BitPrimitiveN(5),
-                    time_offset_length: BitPrimitiveN(5),
-                })
-            });
+                    }))
+                },
+                /*
+                [ErasedKey]: ({cpb_cnt_minus1}) => range(0, cpb_cnt_minus1 + 1).map(() => ({
+                    bit_rate_value_minus1: UExpGolomb,
+                    cpb_size_value_minus1: UExpGolomb,
+                    cbr_flag: BitPrimitive,
+                })),
+                */
+                initial_cpb_removal_delay_length_minus1: IntBitN(5),
+                cpb_removal_delay_length_minus1: IntBitN(5),
+                dpb_output_delay_length_minus1: IntBitN(5),
+                time_offset_length: IntBitN(5),
+            })
+                ();
+            return { hrd_parameters };
         },
-        // nal_hrd_parameters_present_flag_check: InvariantCheck(({ nal_hrd_parameters_present_flag }) => nal_hrd_parameters_present_flag === 0),
-
-
+        // hrd parsing is broken?
+        //nal_hrd_parameters_present_flag_check: InvariantCheck(({ nal_hrd_parameters_present_flag }) => nal_hrd_parameters_present_flag === 0),
         vcl_hrd_parameters_present_flag: BitPrimitive,
     })({
         vcl_hrd_parameters_present_flag_check: InvariantCheck(({ vcl_hrd_parameters_present_flag }) => vcl_hrd_parameters_present_flag === 0),
