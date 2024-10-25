@@ -247,17 +247,23 @@ export function EmulationPreventionWrapper<T extends SerialObject>(totalLength: 
 const RbspTrailingPrimitive: SerialObjectPrimitive<void> = {
     [HandlesBitOffsets]: true,
     read(context) {
-        let stopOneBit = readBit(context);
-        if (stopOneBit !== 1) {
-            throw new Error(`rbsp trailing bits did not start with 1. This means the data is corrupted.`);
-        }
-        while (context.bitOffset !== 0) {
-            let alignment_zero_bit = readBit(context);
-            if (alignment_zero_bit !== 0) {
-                console.error(`rbsp alignment bit was not 0. This means the data is corrupted.`);
-                break;
-            }
-        }
+        // HACK: So... we encountered SPSs which we can't fully parse. BUT, we can mostly parse them
+        //  AND we parse them independently of the rest of the context. So... we're just going to
+        //  read to the end here, to avoid warnings about us not reading enough data
+        context.bitOffset = 0;
+        context.pPos.v = context.end;
+
+        // let stopOneBit = readBit(context);
+        // if (stopOneBit !== 1) {
+        //     throw new Error(`rbsp trailing bits did not start with 1. This means the data is corrupted.`);
+        // }
+        // while (context.bitOffset !== 0) {
+        //     let alignment_zero_bit = readBit(context);
+        //     if (alignment_zero_bit !== 0) {
+        //         console.error(`rbsp alignment bit was not 0. This means the data is corrupted.`);
+        //         break;
+        //     }
+        // }
     },
     write(context) {
         let length = 8 - context.curBitSize % 8;
