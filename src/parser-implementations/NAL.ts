@@ -49,12 +49,9 @@ export function ConvertAnnexBToAVCC(buf: LargeBuffer): LargeBuffer {
 export function ConvertAnnexBToRawBuffers(buf: LargeBuffer): LargeBuffer[] {
     let annexB3BytesPositions: { pos: number, size: number }[] = [];
 
-
     let len = buf.getLength();
     let zeroCount = 0;
 
-
-    // Wait! Variable length start codes!? Dammit, we need to handle this...
     for (let i = 0; i < len; i++) {
         let byte = buf.readUInt8(i);
         if ((zeroCount === 3 || zeroCount === 2) && byte === 0x01) {

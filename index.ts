@@ -1,10 +1,14 @@
-import { ConvertAnnexBToRawBuffers } from "./src/parser-implementations/NAL";
-import { LargeBuffer } from "./src/parser-lib/LargeBuffer";
-import * as NAL from "./src/parser-implementations/NAL";
-import { MuxVideo } from "./src/mp4-typescript";
+// import { ConvertAnnexBToRawBuffers } from "./src/parser-implementations/NAL";
+// import { LargeBuffer } from "./src/parser-lib/LargeBuffer";
+// import * as NAL from "./src/parser-implementations/NAL";
+// import { MuxVideo } from "./src/mp4-typescript";
+const { ConvertAnnexBToRawBuffers } = require("./src/parser-implementations/NAL");
+const { LargeBuffer } = require("./src/parser-lib/LargeBuffer");
+const NAL = require("./src/parser-implementations/NAL");
+const { MuxVideo } = require("./src/mp4-typescript");
 
 export async function H264toMP4(config: {
-    buffer: Buffer;
+    buffer: Buffer | Buffer[];
     width?: number;
     height?: number;
     frameDurationInSeconds: number;
@@ -16,26 +20,14 @@ export async function H264toMP4(config: {
     keyFrameCount: number;
 }> {
     let { buffer, width, height, frameDurationInSeconds } = config;
-    let buf = ConvertAnnexBToRawBuffers(new LargeBuffer([buffer]));
 
-    let sps: Buffer[] = [];
-    let pps: Buffer[] = [];
-    let frames: Buffer[] = [];
-    let keyFrameCount = 0;
-    for (let b of buf) {
-        let parsed = NAL.ParseNalHeaderByte2(b.readUInt8(0));
-        let realBuffer = b.getCombinedBuffer();
-        if (parsed === "sps") {
-            sps.push(realBuffer);
-        } else if (parsed === "pps") {
-            pps.push(realBuffer);
-        } else if (parsed === "frame") {
-            frames.push(realBuffer);
-        } else if (parsed === "keyframe") {
-            keyFrameCount++;
-            frames.push(realBuffer);
-        }
-    }
+    let nals = Array.isArray(buffer) ? buffer : SplitAnnexBVideo(buffer);
+
+    let sps = nals.filter(x => IdentifyNal(x) === "sps");
+    let pps = nals.filter(x => IdentifyNal(x) === "pps");
+    let frames = nals.filter(x => IdentifyNal(x) === "frame" || IdentifyNal(x) === "keyframe");
+    let keyFrameCount = nals.filter(x => IdentifyNal(x) === "keyframe").length;
+
     if (sps.length === 0) {
         throw new Error(`No sps found. Found ${frames.length} frames, and ${keyFrameCount} keyframes`);
     }
@@ -63,4 +55,12 @@ export async function H264toMP4(config: {
         frameCount: frames.length,
         keyFrameCount,
     };
+}
+
+export function SplitAnnexBVideo(buffer: Buffer): Buffer[] {
+    return ConvertAnnexBToRawBuffers(new LargeBuffer([buffer])).map((x: any) => x.getCombinedBuffer());
+}
+
+export function IdentifyNal(nal: Buffer) {
+    return NAL.ParseNalHeaderByte2(nal.readUInt8(0));
 }
