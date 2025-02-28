@@ -1595,6 +1595,8 @@ export function ParseNalHeaderByte2(b: number) {
         return "keyframe" as const;
     } else if (output.nal_unit_type === 1) {
         return "frame" as const;
+    } else if (output.nal_unit_type === 9) {
+        return "access_unit_delimiter" as const;
     }
 
     return "unknown" as const;

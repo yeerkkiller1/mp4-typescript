@@ -61,6 +61,6 @@ export function SplitAnnexBVideo(buffer: Buffer): Buffer[] {
     return ConvertAnnexBToRawBuffers(new LargeBuffer([buffer])).map((x: any) => x.getCombinedBuffer());
 }
 
-export function IdentifyNal(nal: Buffer) {
+export function IdentifyNal(nal: Buffer): "frame" | "keyframe" | "sps" | "pps" {
     return NAL.ParseNalHeaderByte2(nal.readUInt8(0));
 }
