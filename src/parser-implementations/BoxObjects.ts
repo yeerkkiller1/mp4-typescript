@@ -7,7 +7,7 @@ import { EmulationPreventionWrapper, NAL_SPS, NALCreate, NALCreateRaw, Invariant
 
 export function FullBox<T extends string>(type: T) {
     return {
-        ... Box(type),
+        ...Box(type),
         version: UInt8,
         flags: UInt24,
     };
@@ -15,39 +15,39 @@ export function FullBox<T extends string>(type: T) {
 
 
 export const AnyBox = ChooseInfer()({
-    ... Box(BoxAnyType),
+    ...Box(BoxAnyType),
 })({
     remainingBytes: (obj) => RawData(assertNumber(obj.header.size) - assertNumber(obj.header.headerSize))
 })
-();
+    ();
 
 // All the boxes have to be SerialObjects... but... we want to keep the underlying types too, so SerialObjectOutput works.
 export const FtypBox = {
-    ... Box("ftyp"),
+    ...Box("ftyp"),
     major_brand: UInt32String,
     minor_version: UInt32,
     compatible_brands: ArrayInfinite(UInt32String),
 };
 
 export const StypBox = {
-    ... Box("styp"),
+    ...Box("styp"),
     major_brand: UInt32String,
     minor_version: UInt32,
     compatible_brands: ArrayInfinite(UInt32String),
 };
 
-export const MvhdBoxTest = ChooseInfer()({header: FullBox("ftyp")})();
+export const MvhdBoxTest = ChooseInfer()({ header: FullBox("ftyp") })();
 
 export const MvhdBox = ChooseInfer()({ ...FullBox("mvhd") })({
-    times: ({version}) => {
-        if(version === 0) {
+    times: ({ version }) => {
+        if (version === 0) {
             return {
                 creation_time: UInt32,
                 modification_time: UInt32,
                 timescale: UInt32,
                 duration: UInt32,
             };
-        } else if(version === 1) {
+        } else if (version === 1) {
             return {
                 creation_time: UInt64,
                 modification_time: UInt64,
@@ -83,8 +83,8 @@ export const TkhdBox = ChooseInfer()({
         track_enabled: 1,
     }),
 })({
-    times: ({version}) => {
-        if(version === 0) {
+    times: ({ version }) => {
+        if (version === 0) {
             return {
                 creation_time: UInt32,
                 modification_time: UInt32,
@@ -92,7 +92,7 @@ export const TkhdBox = ChooseInfer()({
                 reserved: UInt32,
                 duration: UInt32,
             };
-        } else if(version === 1) {
+        } else if (version === 1) {
             return {
                 creation_time: UInt64,
                 modification_time: UInt64,
@@ -118,21 +118,21 @@ export const TkhdBox = ChooseInfer()({
     width: NumberShifted(UInt32, 1 << 16),
     height: NumberShifted(UInt32, 1 << 16),
 })
-();
+    ();
 
 export const ElstBox = ChooseInfer()({
-    ... FullBox("elst"),
+    ...FullBox("elst"),
     entry_count: UInt32,
 })({
-    entries: ({entry_count, version}) => {
-        if(version === 0) {
+    entries: ({ entry_count, version }) => {
+        if (version === 0) {
             return repeat({
                 segment_duration: UInt32,
                 media_time: Int32,
                 media_rate_integer: Int16,
                 media_rate_fraction: Int16
             }, entry_count);
-        } else if(version === 1) {
+        } else if (version === 1) {
             return repeat({
                 segment_duration: UInt64,
                 media_time: Int64,
@@ -144,39 +144,39 @@ export const ElstBox = ChooseInfer()({
         }
     }
 })
-();
+    ();
 
 export const EdtsBox = {
-    ... Box("edts"),
+    ...Box("edts"),
     boxes: BoxLookup(ElstBox),
 };
 
 export const MdhdBox = ChooseInfer()({
-    ... FullBox("mdhd")
+    ...FullBox("mdhd")
 })({
-    [ErasedKey]: ({version}) => (
+    [ErasedKey]: ({ version }) => (
         version === 0 ? {
             creation_time: UInt32,
             modification_time: UInt32,
             timescale: UInt32,
             duration: UInt32,
         } :
-        version === 1 ? {
-            creation_time: UInt64,
-            modification_time: UInt64,
-            timescale: UInt32,
-            duration: UInt64,
-        } :
-        throwValue(`Invalid version ${version}`)
+            version === 1 ? {
+                creation_time: UInt64,
+                modification_time: UInt64,
+                timescale: UInt32,
+                duration: UInt64,
+            } :
+                throwValue(`Invalid version ${version}`)
     )
 })({
     language: LanguageParse,
     pre_defined: UInt16,
 })
-();
+    ();
 
 export const HdlrBox = {
-    ... FullBox("hdlr"),
+    ...FullBox("hdlr"),
 
     pre_defined: UInt32,
     handler_type: UInt32String,
@@ -186,13 +186,13 @@ export const HdlrBox = {
 };
 
 export const VmhdBox = {
-    ... FullBox("vmhd"),
+    ...FullBox("vmhd"),
     graphicsmode: UInt16,
     opcolor: repeat(UInt16, 3),
 };
 
 export const UrlBox = {
-    ... Box("url "),
+    ...Box("url "),
     version: UInt8,
     flags: bitMapping({
         reserved: 23,
@@ -200,7 +200,7 @@ export const UrlBox = {
     }),
 };
 export const DrefBox = {
-    ... FullBox("dref"),
+    ...FullBox("dref"),
     entry_count: UInt32,
     boxes: BoxLookup(
         UrlBox
@@ -208,19 +208,19 @@ export const DrefBox = {
 };
 
 export const DinfBox = {
-    ... Box("dinf"),
+    ...Box("dinf"),
     boxes: BoxLookup(
         DrefBox
     ),
 };
 
 export const EsdsBox = {
-    ... Box("esds"),
+    ...Box("esds"),
     iHaveNoIdeaAndReallyDontCare: ArrayInfinite(UInt8),
 };
 
 export const Mp4vBox = {
-    ... Box("mp4v"),
+    ...Box("mp4v"),
     reserved: repeat(UInt8, 6),
     data_reference_index: UInt16,
 
@@ -247,19 +247,27 @@ export const Mp4vBox = {
 };
 
 export const Mp4aBox = {
-    ... Box("mp4a"),
+    ...Box("mp4a"),
     data: RemainingDataRaw
 }
 
+export const Ac3Box = {
+    ...Box("ac-3"),
+    data: RemainingDataRaw
+};
+export const Eac3Box = {
+    ...Box("ea-3"),
+    data: RemainingDataRaw
+};
 
 
 // https://github.com/videolan/vlc/blob/master/modules/packetizer/h264_nal.c
 export const AvcCBox = ChooseInfer()({
-    ... Box("avcC"),
+    ...Box("avcC"),
 })({
     configurationVersion: UInt8,
-	AVCProfileIndication: UInt8,
-	profile_compatibility: UInt8,
+    AVCProfileIndication: UInt8,
+    profile_compatibility: UInt8,
     AVCLevelIndication: UInt8,
 })({
     reserved0: BitPrimitiveN(6),
@@ -268,7 +276,7 @@ export const AvcCBox = ChooseInfer()({
     reserved1: BitPrimitiveN(3),
     numOfSequenceParameterSets: IntBitN(5),
 })({
-    spses: ({numOfSequenceParameterSets}) => repeat(
+    spses: ({ numOfSequenceParameterSets }) => repeat(
         {
             // NALLength has a LengthObjectSymbol, which should signal to the parser how far RemainingDataRaw
             //  should parse.
@@ -279,7 +287,7 @@ export const AvcCBox = ChooseInfer()({
     ),
     numOfPictureParameterSets: IntBitN(8),
 })({
-    ppses: ({numOfPictureParameterSets}) => repeat(
+    ppses: ({ numOfPictureParameterSets }) => repeat(
         {
             // NALLength has a LengthObjectSymbol, which should signal to the parser how far RemainingDataRaw
             //  should parse.
@@ -297,56 +305,56 @@ export const AvcCBox = ChooseInfer()({
     }),
     */
 })
-/*
-({
-    numOfSequenceParameterSets: IntBitN(5),
-})({
-    sequenceParameterSets: ({numOfSequenceParameterSets, lengthSizeMinusOne}) => {
-        //console.log({lengthSizeMinusOne});
-        // Hmm... but we have a nal length prefix of size 2. Always? I am not sure what lengthSizeMinusOne
-        //  is even used for, but it appears to be wrong?
-        lengthSizeMinusOne = 2 - 1;
-        return repeat({sps: NALCreateRaw(2)}, numOfSequenceParameterSets);
-    }
-})({
-    numOfPictureParameterSets: IntBitN(8),
-})({
-    pictureParameterSets: ({numOfPictureParameterSets}) => {
-        return repeat({pps: NALCreateRaw(2)}, numOfPictureParameterSets);
-    }
-})
-*/
-({
     /*
-if( profile_idc  ==  100  ||  profile_idc  ==  110  ||
-profile_idc  ==  122  ||  profile_idc  ==  144 )
-{
-    bit(6) reserved = ‘111111’b;
-    unsigned int(2) chroma_format;
-    bit(5) reserved = ‘11111’b;
-    unsigned int(3) bit_depth_luma_minus8;
-    bit(5) reserved = ‘11111’b;
-    unsigned int(3) bit_depth_chroma_minus8;
-    unsigned int(8) numOfSequenceParameterSetExt;
-    for (i=0; i< numOfSequenceParameterSetExt; i++) {
-        unsigned int(16) sequenceParameterSetExtLength;
-        bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;
-    }
-}
-
+    ({
+        numOfSequenceParameterSets: IntBitN(5),
+    })({
+        sequenceParameterSets: ({numOfSequenceParameterSets, lengthSizeMinusOne}) => {
+            //console.log({lengthSizeMinusOne});
+            // Hmm... but we have a nal length prefix of size 2. Always? I am not sure what lengthSizeMinusOne
+            //  is even used for, but it appears to be wrong?
+            lengthSizeMinusOne = 2 - 1;
+            return repeat({sps: NALCreateRaw(2)}, numOfSequenceParameterSets);
+        }
+    })({
+        numOfPictureParameterSets: IntBitN(8),
+    })({
+        pictureParameterSets: ({numOfPictureParameterSets}) => {
+            return repeat({pps: NALCreateRaw(2)}, numOfPictureParameterSets);
+        }
+    })
     */
-    remainingBytes: ArrayInfinite(UInt8)
-})
-();
+    ({
+        /*
+    if( profile_idc  ==  100  ||  profile_idc  ==  110  ||
+    profile_idc  ==  122  ||  profile_idc  ==  144 )
+    {
+        bit(6) reserved = ‘111111’b;
+        unsigned int(2) chroma_format;
+        bit(5) reserved = ‘11111’b;
+        unsigned int(3) bit_depth_luma_minus8;
+        bit(5) reserved = ‘11111’b;
+        unsigned int(3) bit_depth_chroma_minus8;
+        unsigned int(8) numOfSequenceParameterSetExt;
+        for (i=0; i< numOfSequenceParameterSetExt; i++) {
+            unsigned int(16) sequenceParameterSetExtLength;
+            bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;
+        }
+    }
+    
+        */
+        remainingBytes: ArrayInfinite(UInt8)
+    })
+    ();
 
 export const PaspBox = {
-    ... Box("pasp"),
+    ...Box("pasp"),
     hSpacing: UInt32,
     vSpacing: UInt32,
 };
 
 export const ClapBox = {
-    ... Box("clap"),
+    ...Box("clap"),
     cleanApertureWidthN: UInt32,
     cleanApertureWidthD: UInt32,
     cleanApertureHeightN: UInt32,
@@ -357,8 +365,13 @@ export const ClapBox = {
     vertOffD: UInt32,
 };
 
+export const BtrtBox = {
+    ...Box("btrt"),
+    data: RemainingDataRaw
+};
+
 export const Avc1Box = {
-    ... Box("avc1"),
+    ...Box("avc1"),
     reserved: repeat(UInt8, 6),
     data_reference_index: UInt16,
 
@@ -379,34 +392,38 @@ export const Avc1Box = {
     depth: UInt16,
     pre_defined2: Int16,
 
-    boxes: BoxLookup(AvcCBox, ClapBox, PaspBox),
+    boxes: BoxLookup(AvcCBox, ClapBox, PaspBox, BtrtBox),
 
     //extension: [MPEG4ExtensionDescriptorsBox],
 
-    
+
     //notImportant: ArrayInfinite(UInt8),
 
     //output: DebugStringRemaining
 };
 
+
+
 export const StsdBox = ChooseInfer()({
-    ... FullBox("stsd"),
+    ...FullBox("stsd"),
     entry_count: UInt32,
 })({
-    boxes: ({entry_count}) => BoxLookup(
+    boxes: ({ entry_count }) => BoxLookup(
         Mp4vBox,
         Avc1Box,
         Mp4aBox,
+        Ac3Box,
+        Eac3Box,
         entry_count
     ),
 })
-();
+    ();
 
 export const SttsBox = ChooseInfer()({
-    ... FullBox("stts"),
+    ...FullBox("stts"),
     entry_count: UInt32,
 })({
-    samples: ({entry_count}) => repeat(
+    samples: ({ entry_count }) => repeat(
         {
             sample_count: UInt32,
             sample_delta: UInt32,
@@ -414,13 +431,13 @@ export const SttsBox = ChooseInfer()({
         entry_count
     ),
 })
-();
+    ();
 
 export const StscBox = ChooseInfer()({
-    ... FullBox("stsc"),
+    ...FullBox("stsc"),
     entry_count: UInt32,
 })({
-    entries: ({entry_count}) => repeat(
+    entries: ({ entry_count }) => repeat(
         {
             first_chunk: UInt32,
             samples_per_chunk: UInt32,
@@ -429,68 +446,68 @@ export const StscBox = ChooseInfer()({
         entry_count
     )
 })
-();
+    ();
 
 export const StszBox = ChooseInfer()({
-    ... FullBox("stsz"),
+    ...FullBox("stsz"),
     sample_size: UInt32,
     sample_count: UInt32,
 })({
-    sample_sizes: ({sample_size, sample_count}) => {
-        if(sample_size !== 0) return [];
+    sample_sizes: ({ sample_size, sample_count }) => {
+        if (sample_size !== 0) return [];
 
         return repeat(UInt32, sample_count);
     }
 })
-();
+    ();
 
 export const StcoBox = ChooseInfer()({
-    ... FullBox("stco"),
+    ...FullBox("stco"),
     entry_count: UInt32,
 })({
-    chunk_offsets: ({entry_count}) => repeat(UInt32, entry_count)
+    chunk_offsets: ({ entry_count }) => repeat(UInt32, entry_count)
 })
-();
+    ();
 
 export const Co64Box = ChooseInfer()({
-    ... FullBox("co64"),
+    ...FullBox("co64"),
     entry_count: UInt32,
 })({
-    chunk_offsets: ({entry_count}) => repeat(UInt64, entry_count)
+    chunk_offsets: ({ entry_count }) => repeat(UInt64, entry_count)
 })
-();
+    ();
 
 export const StssBox = ChooseInfer()({
-    ... FullBox("stss"),
+    ...FullBox("stss"),
     entry_count: UInt32
 })({
-    sample_indexes: ({entry_count}) => repeat(UInt32, entry_count)
+    sample_indexes: ({ entry_count }) => repeat(UInt32, entry_count)
 })
-();
+    ();
 
 export const CttsBox = ChooseInfer()({
-    ... FullBox("ctts"),
+    ...FullBox("ctts"),
     entry_count: UInt32
 })({
-    samples: ({entry_count}) => repeat({sample_count: UInt32, sample_offset: UInt32}, entry_count)
+    samples: ({ entry_count }) => repeat({ sample_count: UInt32, sample_offset: UInt32 }, entry_count)
 })
-();
+    ();
 
 export const SgpdBox = ChooseInfer()({
-    ... FullBox("sgpd"),
+    ...FullBox("sgpd"),
     data: RemainingDataRaw
 })
-();
+    ();
 
 export const SbgpBox = ChooseInfer()({
-    ... FullBox("sbgp"),
+    ...FullBox("sbgp"),
     data: RemainingDataRaw
 })
-();
+    ();
 
 
 export const StblBox = {
-    ... Box("stbl"),
+    ...Box("stbl"),
     boxes: BoxLookup(
         StsdBox,
         SttsBox,
@@ -511,7 +528,7 @@ export const SmhdBox = {
 }
 
 export const MinfBox = {
-    ... Box("minf"),
+    ...Box("minf"),
     boxes: BoxLookup(
         VmhdBox,
         DinfBox,
@@ -521,7 +538,7 @@ export const MinfBox = {
 };
 
 export const MdiaBox = {
-    ... Box("mdia"),
+    ...Box("mdia"),
     boxes: BoxLookup(
         MdhdBox,
         HdlrBox,
@@ -530,7 +547,7 @@ export const MdiaBox = {
 };
 
 export const TrakBox = {
-    ... Box("trak"),
+    ...Box("trak"),
     boxes: BoxLookup(
         TkhdBox,
         EdtsBox,
@@ -539,11 +556,11 @@ export const TrakBox = {
 };
 
 export const UdtaBox = ChooseInfer()({
-    ... Box("udta"),
+    ...Box("udta"),
 })({
-    bytes: ({header}) => RawData(assertNumber(header.size) - assertNumber(header.headerSize))
+    bytes: ({ header }) => RawData(assertNumber(header.size) - assertNumber(header.headerSize))
 })
-();
+    ();
 
 export const sample_flags = bitMapping({
     reserved: 4,
@@ -557,7 +574,7 @@ export const sample_flags = bitMapping({
 });
 
 export const TrexBox = {
-    ... FullBox("trex"),
+    ...FullBox("trex"),
     track_ID: UInt32,
     default_sample_description_index: UInt32,
     default_sample_duration: UInt32,
@@ -565,59 +582,64 @@ export const TrexBox = {
     default_sample_flags: sample_flags,
 };
 export const MehdBox = ChooseInfer()({
-    ... FullBox("mehd")
+    ...FullBox("mehd")
 })({
-    time: ({version}) => (
+    time: ({ version }) => (
         version === 0 ? {
             fragment_duration: UInt32
         } :
-        version === 1 ? {
-            fragment_duration: UInt64
-        } :
-        throwValue(`Invalid version ${version}`)
+            version === 1 ? {
+                fragment_duration: UInt64
+            } :
+                throwValue(`Invalid version ${version}`)
     )
 })
-();
+    ();
 export const TrepBox = {
-    ... FullBox("trep"),
+    ...FullBox("trep"),
     track_id: UInt32,
     boxes: BoxLookup(),
 };
 export const MvexBox = {
-    ... Box("mvex"),
+    ...Box("mvex"),
     boxes: BoxLookup(
         TrexBox,
         MehdBox,
         TrepBox,
     ),
 };
+export const IodsBox = {
+    ...FullBox("iods"),
+    data: RemainingDataRaw
+};
 
 export const MoovBox = {
-    ... Box("moov"),
+    ...Box("moov"),
     boxes: BoxLookup(
         MvhdBox,
         TrakBox,
         UdtaBox,
-        MvexBox
+        MvexBox,
+        IodsBox
     ),
 };
 
 export const MdatBox = ChooseInfer()({
-    ... Box("mdat"),
+    ...Box("mdat"),
 })({
-    bytes: ({header}) => RawData(assertNumber(header.size) - assertNumber(header.headerSize))
+    bytes: ({ header }) => RawData(assertNumber(header.size) - assertNumber(header.headerSize))
 })
-();
+    ();
 
 export const FreeBox = ChooseInfer()({
-    ... Box("free"),
+    ...Box("free"),
 })({
-    bytes: ({header}) => RawData(assertNumber(header.size) - assertNumber(header.headerSize))
+    bytes: ({ header }) => RawData(assertNumber(header.size) - assertNumber(header.headerSize))
 })
-();
+    ();
 
 export const EmsgBox = ChooseInfer()({
-    ... FullBox("emsg"),
+    ...FullBox("emsg"),
 
     scheme_id_uri: CString,
     value: CString,
@@ -639,7 +661,7 @@ export const EmsgBox = ChooseInfer()({
         return DebugString(lenLeft);
     }
 })
-();
+    ();
 
 // From the ISO/IEC 14496-12:2015 version of the spec, as the ISO/IEC 14496-12:2008 one is outdated.
 export const SidxReference = {
@@ -656,38 +678,38 @@ export const SidxReference = {
 };
 
 export const SidxBox = ChooseInfer()({
-    ... FullBox("sidx"),
+    ...FullBox("sidx"),
 
     reference_ID: UInt32,
     timescale: UInt32,
 })({
-    times: ({version}) => (
+    times: ({ version }) => (
         version === 0 ? {
             earliest_presentation_time: UInt32,
             first_offset: UInt32,
         } :
-        version === 1 ? {
-            earliest_presentation_time: UInt64,
-            first_offset: UInt64,
-        } :
-        throwValue(`Invalid version ${version}`)
+            version === 1 ? {
+                earliest_presentation_time: UInt64,
+                first_offset: UInt64,
+            } :
+                throwValue(`Invalid version ${version}`)
     ),
     reserved: UInt16,
     reference_count: UInt16,
 })({
-    ref: ({reference_count}) => (
+    ref: ({ reference_count }) => (
         repeat(SidxReference, reference_count)
     ),
 })
-();
+    ();
 
 export const MfhdBox = {
-    ... FullBox("mfhd"),
+    ...FullBox("mfhd"),
     sequence_number: UInt32,
 };
 
 export const TfhdBox = ChooseInfer()({
-    ... Box("tfhd"),
+    ...Box("tfhd"),
     version: UInt8,
     flags: bitMapping({
         reserved3: 6,
@@ -703,17 +725,17 @@ export const TfhdBox = ChooseInfer()({
     }),
     track_ID: UInt32,
 })({
-    values: ({flags}) => (
+    values: ({ flags }) => (
         Object.assign({},
-            flags.base_data_offset_present ? {base_data_offset: UInt64} : {},
-            flags.sample_description_index_present ? {sample_description_index: UInt32} : {},
-            flags.default_sample_duration_present ? {default_sample_duration: UInt32} : {},
-            flags.default_sample_size_present ? {default_sample_size: UInt32} : {},
-            flags.default_sample_flags_present ? {default_sample_flags: sample_flags} : {},
+            flags.base_data_offset_present ? { base_data_offset: UInt64 } : {},
+            flags.sample_description_index_present ? { sample_description_index: UInt32 } : {},
+            flags.default_sample_duration_present ? { default_sample_duration: UInt32 } : {},
+            flags.default_sample_size_present ? { default_sample_size: UInt32 } : {},
+            flags.default_sample_flags_present ? { default_sample_flags: sample_flags } : {},
         )
     ),
 })
-();
+    ();
 
 type OptT<T> = { [key in keyof T]?: T[key] };
 export function Opt<T>(obj: T): OptT<T> {
@@ -721,7 +743,7 @@ export function Opt<T>(obj: T): OptT<T> {
 }
 
 export const TrunBox = ChooseInfer()({
-    ... Box("trun"),
+    ...Box("trun"),
     version: UInt8,
     flags: bitMapping({
         reserved2: 12,
@@ -736,14 +758,14 @@ export const TrunBox = ChooseInfer()({
     }),
     sample_count: UInt32
 })({
-    values: ({flags}) => (
+    values: ({ flags }) => (
         ({
             data_offset: flags.data_offset_present ? UInt32 : CodeOnlyValue(undefined),
             first_sample_flags: flags.first_sample_flags_present ? sample_flags : CodeOnlyValue(undefined),
         })
     ),
 })({
-    sample_values: ({sample_count, flags, values}) => (
+    sample_values: ({ sample_count, flags, values }) => (
         range(0, sample_count).map(index => (
             // Object.assign doesn't have enough overloads, so we can only use 4 arguments.
             //{},
@@ -760,27 +782,27 @@ export const TrunBox = ChooseInfer()({
             flags.sample_composition_time_offsets_present ? {sample_composition_time_offset: UInt32} : {},
             */
         )
-    ))
+        ))
 })
-();
+    ();
 
 export const TfdtBox = ChooseInfer()({
-    ... FullBox("tfdt"),
+    ...FullBox("tfdt"),
 })({
-    values: ({version}) => (
+    values: ({ version }) => (
         version === 0 ? {
             baseMediaDecodeTime: UInt32
         } :
-        version === 1 ? {
-            baseMediaDecodeTime: UInt64
-        } :
-        throwValue(`Invalid version ${version}`)
+            version === 1 ? {
+                baseMediaDecodeTime: UInt64
+            } :
+                throwValue(`Invalid version ${version}`)
     )
 })
-();
+    ();
 
 export const TrafBox = {
-    ... Box("traf"),
+    ...Box("traf"),
     boxes: BoxLookup(
         TfhdBox,
         TrunBox,
@@ -789,7 +811,7 @@ export const TrafBox = {
 };
 
 export const MoofBox = {
-    ... Box("moof"),
+    ...Box("moof"),
     boxes: BoxLookup(
         MfhdBox,
         TrafBox,
@@ -815,7 +837,7 @@ export const RootBox = {
 
 
 export const MdiaBox_ed = {
-    ... Box("mdia"),
+    ...Box("mdia"),
     boxes: BoxLookup(
         MdhdBox,
         AnyBox
@@ -823,7 +845,7 @@ export const MdiaBox_ed = {
 };
 
 export const TrakBox_ed = {
-    ... Box("trak"),
+    ...Box("trak"),
     boxes: BoxLookup(
         EdtsBox,
         MdiaBox_ed,
@@ -832,7 +854,7 @@ export const TrakBox_ed = {
 };
 
 export const MoovBox_ed = {
-    ... Box("moov"),
+    ...Box("moov"),
     boxes: BoxLookup(
         MvhdBox,
         TrakBox_ed,
@@ -853,37 +875,37 @@ export const RootBoxForEditLists = {
 // https://www.itscj.ipsj.or.jp/sc29/open/29view/29n14632t.doc
 /*
 aligned(8) class AVCDecoderConfigurationRecord {
-	unsigned int(8) configurationVersion = 1;
-	unsigned int(8) AVCProfileIndication;
-	unsigned int(8) profile_compatibility;
-	unsigned int(8) AVCLevelIndication; 
-	bit(6) reserved = ‘111111’b;
-	unsigned int(2) lengthSizeMinusOne; 
-	bit(3) reserved = ‘111’b;
-	unsigned int(5) numOfSequenceParameterSets;
-	for (i=0; i< numOfSequenceParameterSets;  i++) {
-		unsigned int(16) sequenceParameterSetLength ;
-		bit(8*sequenceParameterSetLength) sequenceParameterSetNALUnit;
-	}
-	unsigned int(8) numOfPictureParameterSets;
-	for (i=0; i< numOfPictureParameterSets;  i++) {
-		unsigned int(16) pictureParameterSetLength;
-		bit(8*pictureParameterSetLength) pictureParameterSetNALUnit;
-	}
-	if( profile_idc  ==  100  ||  profile_idc  ==  110  ||
-	    profile_idc  ==  122  ||  profile_idc  ==  144 )
-	{
-		bit(6) reserved = ‘111111’b;
-		unsigned int(2) chroma_format;
-		bit(5) reserved = ‘11111’b;
-		unsigned int(3) bit_depth_luma_minus8;
-		bit(5) reserved = ‘11111’b;
-		unsigned int(3) bit_depth_chroma_minus8;
-		unsigned int(8) numOfSequenceParameterSetExt;
-		for (i=0; i< numOfSequenceParameterSetExt; i++) {
-			unsigned int(16) sequenceParameterSetExtLength;
-			bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;
-		}
+    unsigned int(8) configurationVersion = 1;
+    unsigned int(8) AVCProfileIndication;
+    unsigned int(8) profile_compatibility;
+    unsigned int(8) AVCLevelIndication; 
+    bit(6) reserved = ‘111111’b;
+    unsigned int(2) lengthSizeMinusOne; 
+    bit(3) reserved = ‘111’b;
+    unsigned int(5) numOfSequenceParameterSets;
+    for (i=0; i< numOfSequenceParameterSets;  i++) {
+        unsigned int(16) sequenceParameterSetLength ;
+        bit(8*sequenceParameterSetLength) sequenceParameterSetNALUnit;
+    }
+    unsigned int(8) numOfPictureParameterSets;
+    for (i=0; i< numOfPictureParameterSets;  i++) {
+        unsigned int(16) pictureParameterSetLength;
+        bit(8*pictureParameterSetLength) pictureParameterSetNALUnit;
+    }
+    if( profile_idc  ==  100  ||  profile_idc  ==  110  ||
+        profile_idc  ==  122  ||  profile_idc  ==  144 )
+    {
+        bit(6) reserved = ‘111111’b;
+        unsigned int(2) chroma_format;
+        bit(5) reserved = ‘11111’b;
+        unsigned int(3) bit_depth_luma_minus8;
+        bit(5) reserved = ‘11111’b;
+        unsigned int(3) bit_depth_chroma_minus8;
+        unsigned int(8) numOfSequenceParameterSetExt;
+        for (i=0; i< numOfSequenceParameterSetExt; i++) {
+            unsigned int(16) sequenceParameterSetExtLength;
+            bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;
+        }
     }
 }
 */
