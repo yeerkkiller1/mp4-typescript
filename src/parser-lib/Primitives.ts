@@ -100,7 +100,24 @@ export function RawData(size: number): SerialObjectPrimitive<LargeBuffer> {
             return buf;
         },
         write(context) {
-            return context.value;
+            let value = context.value;
+            if(Buffer.isBuffer(value)) {
+                return new LargeBuffer([value]);
+            }
+            if (Array.isArray(value)) {
+                if(value.length === 0) {
+                    return new LargeBuffer([]);
+                }
+                if(Buffer.isBuffer(value[0])) {
+                    return new LargeBuffer(value);
+                }
+                if(typeof value[0] === "number") {
+                    return new LargeBuffer(value);
+                }
+                console.log(value);
+                throw new Error(`Expected array of unknown data in RawData. LargeBuffer might accept it, but it might fail. See previous logs for data`);
+            }
+            return value;
         }
     };
 }

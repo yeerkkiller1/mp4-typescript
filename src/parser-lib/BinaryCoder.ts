@@ -53,6 +53,7 @@ import { sum } from "../util/math";
 import { textFromUInt32, textToUInt32, writeUInt64BE } from "../util/serialExtension";
 import { WrapWithFunctionName } from "../util/debug";
 import { Range } from "pchannel";
+import { RemainingDataRaw } from "./Primitives";
 
 export const BoxAnyType = "any";
 
@@ -412,9 +413,12 @@ function _parseBytes<T extends SerialObject>(buffer: LargeBuffer, rootObjectInfo
 
                         if(!(type in boxLookup)) {
                             console.warn(debugError(`Unexpected box type ${type}. Expected one of ${Object.keys(boxLookup).join(", ")}`).message);
-                            // Fill the entry with something, so we don't throw later.
-                            arr[index] = {};
-                            pPos.v = boxEnd;
+                            // Just parse a variable lengthed catch all box
+                            let box = {
+                                ...Box(type),
+                                data: RemainingDataRaw
+                            };
+                            parseChildBase(box, { key: index as any as string, parent: arr as any });
                         } else {
                             let box = boxLookup[type];
                             parseChildBase(box, { key: index as any as string, parent: arr as any });
@@ -593,7 +597,11 @@ function _createIntermediateObject<T extends SerialObject>(template: T, data: _S
                             if(childBoxLookup[BoxAnyType]) {
                                 childBoxReal = childBoxLookup[BoxAnyType];
                             } else {
-                                throw new Error(`Cannot find type for box ${datum.header.type}. Expected types of ${Object.keys(childBoxLookup).join(", ")}`);
+                                console.warn(`Cannot find type for box ${datum.header.type}. Expected types of ${Object.keys(childBoxLookup).join(", ")}`);
+                                childBoxReal = {
+                                    ...Box(datum.header.type),
+                                    data: RemainingDataRaw
+                                };
                             }
                         }
 

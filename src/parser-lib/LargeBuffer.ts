@@ -407,6 +407,10 @@ export class LargeBuffer {
     }
 
     public toJSON() {
-        return `LargeBuffer(${this.getLength()})`;
+        let len = this.getLength();
+        if(len < 32 && len > 0) {
+            return `LargeBuffer(${this.getInternalBufferList().map(x => x.toString("hex")).join("")})`;
+        }
+        return `LargeBuffer(${len})`;
     }
 }

@@ -1,9 +1,10 @@
 import { Box, CodeOnlyValue, BoxAnyType } from "../parser-lib/BinaryCoder";
-import { UInt32String, UInt32, UInt64, NumberShifted, Int32, Int16, UInt16, UInt8, bitMapping, CString, LanguageParse, RawData, Int64, BitPrimitiveN, IntBitN, BitPrimitive, DebugString, DebugStringRemaining, UInt24, RemainingDataRaw } from "../parser-lib/Primitives";
-import { ArrayInfinite, ChooseInfer, BoxLookup, ErasedKey } from "../parser-lib/SerialTypes";
+import { UInt32String, UInt32, UInt64, NumberShifted, Int32, Int16, UInt16, UInt8, bitMapping, CString, LanguageParse, RawData, Int64, BitPrimitiveN, IntBitN, BitPrimitive, DebugString, DebugStringRemaining, UInt24, RemainingDataRaw, AlignmentBits } from "../parser-lib/Primitives";
+import { ArrayInfinite, ChooseInfer, BoxLookup, ErasedKey, LengthObjectSymbol } from "../parser-lib/SerialTypes";
 import { repeat, range } from "../util/misc";
 import { throwValue, assertNumber } from "../util/type";
 import { EmulationPreventionWrapper, NAL_SPS, NALCreate, NALCreateRaw, InvariantCheck, NALLength } from "./NAL";
+import { LargeBuffer } from "../parser-lib/LargeBuffer";
 
 export function FullBox<T extends string>(type: T) {
     return {
@@ -214,9 +215,118 @@ export const DinfBox = {
     ),
 };
 
+
+export function Descriptor(tagByte: number): SerialObjectPrimitiveLength<{ tag: number }> {
+    return {
+        descriptor: {
+            [LengthObjectSymbol]: "MPEG4Descriptor",
+
+            read(context) {
+                const { buffer, pPos } = context;
+
+                const tag = buffer.readUInt8(pPos.v++);
+                if (tag !== tagByte) throw new Error(`Expected descriptor tag ${tagByte}, got ${tag}`);
+
+                // Read variable-length size (up to 4 bytes, 7-bit chunks)
+                let size = 0;
+                let sizeBytes = 0;
+                for (let i = 0; i < 4; i++) {
+                    const b = buffer.readUInt8(pPos.v++);
+                    sizeBytes++;
+                    size = (size << 7) | (b & 0x7F);
+                    if ((b & 0x80) === 0) break;
+                }
+
+                size++;
+                size += sizeBytes;
+                return { tag, size };
+            },
+
+            write(context) {
+                const contentSize = context.getSizeAfter();
+                const lengthBytes: number[] = [];
+                let remaining = contentSize;
+
+                // Encode length in 7-bit continuation format
+                do {
+                    lengthBytes.unshift(remaining & 0x7F);
+                    remaining >>= 7;
+                } while (remaining > 0);
+
+                for (let i = 0; i < lengthBytes.length - 1; i++) {
+                    lengthBytes[i] |= 0x80;
+                }
+
+                const head = Buffer.from([tagByte, ...lengthBytes]);
+                return new LargeBuffer([head]);
+            },
+        }
+    };
+}
+
 export const EsdsBox = {
     ...Box("esds"),
-    iHaveNoIdeaAndReallyDontCare: ArrayInfinite(UInt8),
+    version: UInt8,
+    flags: UInt24,
+
+    es_descriptor: {
+        ...Descriptor(0x03),
+        es_id: UInt16,
+        stream_priority: UInt8,
+
+        decoder_config: ChooseInfer()({
+            ...Descriptor(0x04),
+            object_type: UInt8,
+            stream_type: UInt8,
+            buffer_size_db: UInt24,
+            max_bitrate: UInt32,
+            avg_bitrate: UInt32,
+        })({
+            decoder_specific: ({ object_type }) => {
+                if(object_type === 0x40) {
+                    return {
+                        ...Descriptor(0x05),
+                        // audioObjectType: IntBitN(5),
+                        // samplingFrequencyIndex: IntBitN(4),
+                        // channelConfiguration: IntBitN(4),
+                        // remainingBits: AlignmentBits,
+                        data: RemainingDataRaw,
+                    }
+                }
+                return {
+                    //...Descriptor(0x05),
+                    data: RemainingDataRaw,
+                }
+            }
+        })(),
+
+        // sl_config: {
+        //     ...Descriptor(0x06),
+        //     predefined: UInt8
+        // },
+        data: RemainingDataRaw,
+    },
+    data: RemainingDataRaw,
+};
+
+
+export const Mp4aBox = {
+    ...Box("mp4a"),
+    reserved: repeat(UInt8, 6),
+    data_reference_index: UInt16,
+
+    version: UInt16,
+    revision_level: UInt16,
+    vendor: UInt32,
+
+    number_of_channels: UInt16,
+    sample_size: UInt16,
+    compression_id: Int16,
+    packet_size: UInt16,
+
+    sample_rate: UInt32, // 16.16 fixed-point
+
+    esds: EsdsBox
 };
 
 export const Mp4vBox = {
@@ -246,10 +356,31 @@ export const Mp4vBox = {
     notImportant: ArrayInfinite(UInt8),
 };
 
-export const Mp4aBox = {
-    ...Box("mp4a"),
-    data: RemainingDataRaw
-}
+export const LpcmBox = {
+    ...Box("lpcm"),
+    reserved: repeat(UInt8, 6),
+    data_reference_index: UInt16,
+
+    version: UInt16,            // MUST be directly after data_reference_index
+    revision_level: UInt16,
+    vendor: UInt32,
+
+    number_of_channels: UInt16,
+    sample_size: UInt16,
+    compression_id: Int16,
+    packet_size: UInt16,
+
+    sample_rate: UInt32,        // 16.16 fixed-point
+
+    // Extended fields for version 1
+    format_flags: UInt32,
+    frames_per_packet: UInt32,
+    bytes_per_packet: UInt32,
+    bytes_per_frame: UInt32,
+    bytes_per_sample: UInt32,
+
+    notImportant: ArrayInfinite(UInt8),
+};
 
 export const Ac3Box = {
     ...Box("ac-3"),
@@ -370,6 +501,37 @@ export const BtrtBox = {
     data: RemainingDataRaw
 };
 
+export const TextBox = {
+    ...Box("text"),
+    data: RemainingDataRaw
+};
+
+export const Hev1Box = {
+    ...Box("hev1"),
+
+    reserved: repeat(UInt8, 6),
+    data_reference_index: UInt16,
+
+    pre_defined: UInt16,
+    reserved1: UInt16,
+    pre_defined1: repeat(UInt32, 3),
+    width: UInt16,
+    height: UInt16,
+
+    horizresolution: UInt32,
+    vertresolution: UInt32,
+
+    reserved2: UInt32,
+    frame_count: UInt16,
+
+    compressorname: repeat(UInt8, 32),
+    depth: UInt16,
+    pre_defined2: Int16,
+
+    data: RemainingDataRaw
+};
+
+
 export const Avc1Box = {
     ...Box("avc1"),
     reserved: repeat(UInt8, 6),
@@ -404,6 +566,7 @@ export const Avc1Box = {
 
 
 
+
 export const StsdBox = ChooseInfer()({
     ...FullBox("stsd"),
     entry_count: UInt32,
@@ -414,6 +577,9 @@ export const StsdBox = ChooseInfer()({
         Mp4aBox,
         Ac3Box,
         Eac3Box,
+        LpcmBox,
+        TextBox,
+        Hev1Box,
         entry_count
     ),
 })
@@ -525,6 +691,10 @@ export const StblBox = {
 export const SmhdBox = {
     ...Box("smhd"),
     data: RemainingDataRaw
+};
+export const GmhdBox = {
+    ...Box("gmhd"),
+    data: RemainingDataRaw
 }
 
 export const MinfBox = {
@@ -533,7 +703,8 @@ export const MinfBox = {
         VmhdBox,
         DinfBox,
         StblBox,
-        SmhdBox
+        SmhdBox,
+        GmhdBox,
     ),
 };
 
@@ -546,14 +717,21 @@ export const MdiaBox = {
     ),
 };
 
+export const TrefBox = {
+    ...Box("tref"),
+    data: RemainingDataRaw
+};
+
 export const TrakBox = {
     ...Box("trak"),
     boxes: BoxLookup(
         TkhdBox,
         EdtsBox,
-        MdiaBox
+        MdiaBox,
+        TrefBox,
     ),
 };
+
 
 export const UdtaBox = ChooseInfer()({
     ...Box("udta"),

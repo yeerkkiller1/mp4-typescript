@@ -1,10 +1,5 @@
 export function decodeUTF8BytesToString(bytes: number[]): string {
-    let encodedString = "";
-    for(let i = 0; i < bytes.length; i++) {
-        let b = bytes[i];
-        encodedString += "%" + b.toString(16);
-    }
-    return decodeURIComponent(encodedString);
+    return Buffer.from(bytes).toString("utf8");
 }
 export function encodeAsUTF8Bytes(str: string): number[] {
     let utf8: number[] = [];
