@@ -1,5 +1,3 @@
-import  * as fs from "fs";
-
 import { textFromUInt32, readUInt64BE, textToUInt32, writeUInt64BE } from "../util/serialExtension";
 import { range, flatten } from "../util/misc";
 import { byteToBits, bitsToByte, Bit } from "./Primitives";
@@ -14,6 +12,7 @@ let id = 0;
 export class LargeBuffer {
     UID = (id++).toString();
     static FromFile(path: string): LargeBuffer {
+        const fs = require("fs");
         // Try a single Buffer
         try {
             let buf = fs.readFileSync(path);
