@@ -6,14 +6,17 @@ import * as NAL from "./parser-implementations/NAL";
 import { LargeBuffer } from "./parser-lib/LargeBuffer";
 import { parseObject, filterBox, writeObject } from "./parser-lib/BinaryCoder";
 import { createVideo3, SampleInfo } from "./media/create-mp4";
-import { writeFileSync, readFile, readFileSync } from "fs";
+import { writeFileSync, readFile, readFileSync, readdirSync, statSync } from "fs";
 import { SetTimeoutAsync } from "pchannel";
 import { testReadFile, testWriteFile, testWrite } from "./test/utils";
+import { join, dirname, basename } from "path";
 
 import { RootBox, StcoBox, RootBoxForEditLists } from "./parser-implementations/BoxObjects";
 import { ArrayInfinite, TemplateToObject } from "./parser-lib/SerialTypes";
 import { RemainingDataRaw } from "./parser-lib/Primitives";
 import { min } from "./util/math";
+import * as fs from "fs";
+import { H264toMP4 } from "..";
 
 //testReadFile("C:/scratch/test.mp4");
 //testReadFile("./dist/output0.mp4");
@@ -22,8 +25,60 @@ import { min } from "./util/math";
 //testReadFile("./dist/output0.mp4");
 //testReadFile("./dist/output0NEW.mp4");
 
+/**
+ * Matches files based on a glob pattern. Supports * and ? wildcards with recursive directory traversal.
+ * Returns an array of matching file paths.
+ */
+function matchFiles(pattern: string): string[] {
+    const dir = dirname(pattern);
+    const filePattern = basename(pattern);
+    
+    // Convert glob pattern to regex
+    const regexPattern = filePattern
+        .replace(/\./g, "\\.")
+        .replace(/\*/g, ".*")
+        .replace(/\?/g, ".");
+    const regex = new RegExp("^" + regexPattern + "$");
+    
+    // Recursively get all files from directory
+    function getAllFiles(dirPath: string): string[] {
+        let results: string[] = [];
+        try {
+            const items = readdirSync(dirPath);
+            for (const item of items) {
+                const fullPath = join(dirPath, item);
+                try {
+                    const stat = statSync(fullPath);
+                    if (stat.isDirectory()) {
+                        results = results.concat(getAllFiles(fullPath));
+                    } else if (stat.isFile()) {
+                        results.push(fullPath);
+                    }
+                } catch {
+                    // Skip items we can't access
+                }
+            }
+        } catch (error) {
+            console.error(`Error reading directory ${dirPath}:`, error);
+        }
+        return results;
+    }
+    
+    try {
+        const allFiles = getAllFiles(dir);
+        const matchedFiles = allFiles
+            .filter(file => regex.test(basename(file)))
+            .sort(); // Sort for consistent ordering
+        
+        return matchedFiles;
+    } catch (error) {
+        console.error(`Error matching files for pattern ${pattern}:`, error);
+        return [];
+    }
+}
+
 if (typeof window === "undefined") {
-    if (process.argv.length > 2 &&
+    if (process.argv.length >= 2 &&
         (process.argv[0].replace(/\\/g, "/").endsWith("/node") || process.argv[0].replace(/\\/g, "/").endsWith("/node.exe")) &&
         (process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript") || process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript.js") || process.argv[1].replace(/\\/g, "/").endsWith("/mp4-typescript.ts"))
     ) {
@@ -41,6 +96,56 @@ async function main(args: string[]) {
     let verb = args[0];
     switch (verb) {
         default: throw new Error(`Unsupported verb ${verb}`);
+        case "mux2": {
+            let { H264toMP4 } = await import("../index.ts");
+            let inputNalPath = args[1];
+            let outputPath = args[2];
+
+            // Match files using wildcards
+            let inputFiles = matchFiles(inputNalPath);
+            if (inputFiles.length === 0) {
+                console.error(`No files matched pattern: ${inputNalPath}`);
+                process.exit(1);
+            }
+            console.log(`Found ${inputFiles.length} file(s) matching pattern:`, inputFiles);
+
+            // Read and combine all matched files
+            let combinedBuffers: Buffer[] = [];
+            for (let filePath of inputFiles) {
+                let fileBuffer = await fs.promises.readFile(filePath);
+                combinedBuffers.push(fileBuffer);
+            }
+            let raw = Buffer.concat(combinedBuffers);
+
+            function splitNALs(buffer: Buffer, ignorePartial?: "ignorePartial"): Buffer[] {
+                let outputBuffers: Buffer[] = [];
+                let i = 0;
+                while (i < buffer.length) {
+                    let length = buffer.readUInt32BE(i);
+                    i += 4;
+                    if (i + length > buffer.length) {
+                        if (ignorePartial) break;
+                        let errorMessage = `NAL length is too long, buffer is corrupted. ${i} + ${length} = ${i + length} > ${buffer.length}`;
+                        console.error(errorMessage);
+                        break;
+                    }
+                    outputBuffers.push(buffer.slice(i, i + length));
+                    i += length;
+                }
+                return outputBuffers;
+            }
+
+            let buf = splitNALs(raw);
+
+            let output = await H264toMP4({
+                buffer: buf,
+                frameDurationInSeconds: 1 / 30,
+                mediaStartTimeSeconds: 0,
+            });
+
+            await fs.promises.writeFile(outputPath, output.buffer);
+            break;
+        }
         case "mux": {
             let inputNalPath = args[1];
             let outputPath = args[2];

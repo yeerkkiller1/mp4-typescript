@@ -981,10 +981,6 @@ export const Box: <T extends string>(type: T) => { header: SerialObjectPrimitive
             let size = buffer.readUInt32BE(pPos.v); pPos.v += 4;
             let type = textFromUInt32(buffer.readUInt32BE(pPos.v)) as T; pPos.v += 4;
 
-            if(type === "uuid") {
-                throw new Error(`Unhandled mp4 box type uuid`);
-            }
-
             if(typeIn !== BoxAnyType && type !== typeIn) {
                 throw new Error(`Unexpected box type ${type}. Expected ${typeIn}`);
             }

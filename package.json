@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "start": "bash watch.sh"
+    "watch": "bash watch.sh",
+    "start": "yarn typenode ./src/mp4-typescript.ts"
   },
   "name": "mp4-typescript",
   "version": "0.21.0",
